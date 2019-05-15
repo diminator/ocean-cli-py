@@ -1,0 +1,152 @@
+{
+  "@context": "https://w3id.org/future-method/v1",
+  "id": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a",
+  "publicKey": [
+    {
+      "id": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a#keys-1",
+      "type": "RsaVerificationKey2018",
+      "owner": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY...END PUBLIC KEY-----\r\n"
+    },
+    {
+      "id": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a#keys-2",
+      "type": "Ed25519VerificationKey2018",
+      "owner": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a",
+      "publicKeyBase58": "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
+    },
+    {
+      "id": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a#keys-3",
+      "type": "RsaPublicKeyExchangeKey2018",
+      "owner": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY...END PUBLIC KEY-----\r\n"
+    }
+  ],
+  "authentication": [
+    {
+      "type": "RsaSignatureAuthentication2018",
+      "publicKey": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a#keys-1"
+    },
+    {
+      "type": "ieee2410Authentication2018",
+      "publicKey": "did:op:3597a39818d598e5d60b83eabe29e337d37d9ed5af218b4af5e94df9f7d9783a#keys-2"
+    }
+  ],
+  "proof": {
+    "type": "UUIDSignature",
+    "created": "2016-02-08T16:02:20Z",
+    "creator": "did:example:8uQhQMGzWxR8vw5P3UWH1ja",
+    "signatureValue": "QNB13Y7Q9...1tzjn4w=="
+  },
+  "service": [
+    {
+      "type": "OpenIdConnectVersion1.0Service",
+      "serviceDefinitionId": "0",
+      "serviceEndpoint": "https://openid.example.com/"
+    },
+    {
+      "type": "CredentialRepositoryService",
+      "serviceDefinitionId": "1",
+      "serviceEndpoint": "https://repository.example.com/service/8377464"
+    },
+    {
+      "type": "XdiService",
+      "serviceDefinitionId": "2",
+      "serviceEndpoint": "https://xdi.example.com/8377464"
+    },
+    {
+      "type": "HubService",
+      "serviceDefinitionId": "3",
+      "serviceEndpoint": "https://hub.example.com/.identity/did:op:0123456789abcdef/"
+    },
+    {
+      "type": "MessagingService",
+      "serviceDefinitionId": "4",
+      "serviceEndpoint": "https://example.com/messages/8377464"
+    },
+    {
+      "type": "SocialWebInboxService",
+      "serviceDefinitionId": "5",
+      "serviceEndpoint": "https://social.example.com/83hfh37dj",
+      "description": "My public social inbox",
+      "spamCost": {
+        "amount": "0.50",
+        "currency": "USD"
+      }
+    },
+    {
+      "type": "BopsService",
+      "serviceDefinitionId": "6",
+      "serviceEndpoint": "https://bops.example.com/enterprise/"
+    },
+    {
+      "type": "Consume",
+      "serviceDefinitionId": "7",
+      "serviceEndpoint": "http://mybrizo.org/api/v1/brizo/services/consume?pubKey=${pubKey}&agreementId={agreementId}&url={url}"
+    },
+    {
+      "type": "Compute",
+      "serviceDefinitionId": "8",
+      "serviceEndpoint": "http://mybrizo.org/api/v1/brizo/services/compute?pubKey=${pubKey}&agreementId={agreementId}&algo={algo}&container={container}"
+    },
+    {
+      "type": "Metadata",
+      "serviceDefinitionId": "9",
+      "serviceEndpoint": "http://myaquarius.org/api/v1/provider/assets/metadata/{did}",
+      "metadata": {
+        "base": {
+          "name": "UK Weather information 2011",
+          "type": "dataset",
+          "description": "Weather information of UK including temperature and humidity",
+          "dateCreated": "2012-10-10T17:00:000Z",
+          "author": "Met Office",
+          "license": "CC-BY",
+          "copyrightHolder": "Met Office",
+          "compression": "zip",
+          "workExample": "423432fsd,51.509865,-0.118092,2011-01-01T10:55:11+00:00,7.2,68",
+          "files": [
+            {
+              "checksum": "efb2c764274b745f5fc37f97c6b0e761",
+              "contentLength": "4535431",
+              "resourceId": "access-log2018-02-13-15-17-29-18386C502CAEA932"
+            }
+          ],
+          "encryptedFiles": "encryptedListOfFiles",
+          "links": [
+            {
+              "name": "Sample of Asset Data",
+              "type": "sample",
+              "url": "https://foo.com/sample.csv"
+            },
+            {
+              "name": "Data Format Definition",
+              "type": "format",
+              "AssetID": "4d517500da0acb0d65a716f61330969334630363ce4a6a9d39691026ac7908ea"
+            }
+          ],
+          "inLanguage": "en",
+          "tags": "weather, uk, 2011, temperature, humidity",
+          "price": 10,
+          "checksum": "38803b9e6f04fce3fba4b124524672592264d31847182c689095a081c9e85264"
+        },
+        "curation": {
+          "rating": 0.93,
+          "numVotes": 123,
+          "schema": "Binary Voting"
+        },
+        "additionalInformation": {
+          "updateFrequency": "yearly",
+          "structuredMarkup": [
+            {
+              "uri": "http://skos.um.es/unescothes/C01194/jsonld",
+              "mediaType": "application/ld+json"
+            },
+            {
+              "uri": "http://skos.um.es/unescothes/C01194/turtle",
+              "mediaType": "text/turtle"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
