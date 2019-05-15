@@ -19,6 +19,15 @@
 ## Get started
 
 ### Setup
+> The setup assumes either running a local network or setup a configuration file
+for connecting to Nile, Duero, ...
+
+
+## Compatibility
+
+- keeper-contracts: `v0.9.7`
+- brizo: `>0.3.7`
+
 ```bash
 virtualenv venv -p python3
 source venv/bin/activate
@@ -33,22 +42,25 @@ We're assuming user config files:
 - Bob: `bob.ini`
 
 ```bash
-# basics
+## basics
 > ocean --help
+
+## accounts and tokens
 > ocean accounts list
 > ocean accounts balance
-
-# profiles
+# switch accounts
 > ocean -c <config.ini> accounts balance
 > ocean -c alice.ini accounts balance
 > ocean -c alice.ini tokens request <amount>
+> ocean -c alice.ini tokens transfer <amount> <public key>
 
-
-# publish / consume
+## publish / consume
+# publish from metadata
 > ocean -c bob.ini assets create <data/metadata.json>
   did: <did:op:123...ABC>
 
-> ocean -c alice.ini assets consume did:op:123...ABC>
+# 
+> ocean -c alice.ini assets consume <did:op:123...ABC>
 > ls consume-downloads
  <list of files>
 
