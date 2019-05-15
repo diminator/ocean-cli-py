@@ -59,7 +59,7 @@ We're assuming user config files:
 > ocean -c bob.ini assets create <data/metadata.json>
   did: <did:op:123...ABC>
 
-# 
+# consume did
 > ocean -c alice.ini assets consume <did:op:123...ABC>
 > ls consume-downloads
  <list of files>

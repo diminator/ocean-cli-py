@@ -1,5 +1,6 @@
 import click
 import json
+import logging
 import os
 import re
 import time
@@ -15,6 +16,8 @@ from squid_py.keeper.agreements.agreement_manager import AgreementStoreManager
 from squid_py.keeper.web3_provider import Web3Provider
 from squid_py.ocean.ocean import Ocean
 from squid_py.ocean.ocean_conditions import OceanConditions
+
+logging.getLogger().setLevel(logging.ERROR)
 
 
 def get_default_account(config):
@@ -49,7 +52,6 @@ def ocean(ctx, config_file, as_json):
     Simple CLI for registering and consuming assets in Ocean Protocol
     """
     ocean = Ocean(Config(filename=config_file))
-
     account = get_default_account(ConfigProvider.get_config())
 
     ctx.obj = {
