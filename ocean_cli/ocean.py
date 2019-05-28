@@ -18,6 +18,8 @@ from squid_py.keeper.web3_provider import Web3Provider
 from squid_py.ocean.ocean import Ocean
 from squid_py.ocean.ocean_conditions import OceanConditions
 
+from squid_py.keeper.didregistry import DIDRegisterValues
+
 
 def get_default_account(config):
     account_address = config.get('keeper-contracts', 'account.address')
@@ -69,6 +71,15 @@ def echo(response):
 def ocean(ctx, config_file, as_json, verbose):
     """
     Simple CLI for registering and consuming assets in Ocean Protocol
+
+    \b
+                                               O           ,
+                                                       .</       ,
+  ____                      _______   ____          ,aT&/t    ,</
+ / __ \_______ ___ ____    / ___/ /  /  _/     o   o:\:::::95/b/
+/ /_/ / __/ -_) _ `/ _ \  / /__/ /___/ /        ' >::7:::::U2/)(
+\____/\__/\__/\_,_/_//_/  \___/____/___/           '*qf/P    '</
+                                                     '<)       '
     """
     if not verbose:
         logging.getLogger().setLevel(logging.ERROR)
@@ -205,8 +216,59 @@ def assets_create(ctx, metadata, secret_store):
     )
     did_registry = Keeper.get_instance().did_registry
     provider = did_registry.to_checksum_address(account.address)
-    did_registry.add_provider(ddo.asset_id, provider, account)
+    time.sleep(20)
+    try:
+        did_registry.add_provider(ddo.asset_id, provider, account)
+    except ValueError as e:
+        print('ValueError', e)
     echo([ddo.did])
+
+
+@assets.command('add-providers')
+@click.argument('did')
+@click.argument('provider', default=None)
+@click.pass_context
+def assets_create(ctx, did, provider):
+    ocean, account = ctx.obj['ocean'], ctx.obj['account']
+    if provider == 'me':
+        provider = account.address
+    did_registry = Keeper.get_instance().did_registry
+    response = did_registry.add_provider(did_to_id(did), provider, account)
+    echo(f"{response}")
+
+
+@assets.command('get-providers')
+@click.argument('did')
+@click.pass_context
+def assets_create(ctx, did):
+    ocean, account = ctx.obj['ocean'], ctx.obj['account']
+    did_registry = Keeper.get_instance().did_registry
+    response = did_registry.get_did_providers(did_to_id(did))
+    echo(f"{response}")
+
+
+@assets.command('get-owner')
+@click.argument('did')
+@click.pass_context
+def assets_create(ctx, did):
+    ocean, account = ctx.obj['ocean'], ctx.obj['account']
+    did_registry = Keeper.get_instance().did_registry
+    response = did_registry.get_did_owner(did_to_id(did))
+    echo(f"{response}")
+
+
+@assets.command('get')
+@click.argument('did')
+@click.pass_context
+def assets_create(ctx, did):
+    ocean, account = ctx.obj['ocean'], ctx.obj['account']
+    did_registry = Keeper.get_instance().did_registry
+    register_values = did_registry.contract_concise.getDIDRegister(did_to_id(did))
+    response = []
+    if register_values and len(register_values) == 5:
+        response = DIDRegisterValues(*register_values)._asdict()
+        response['last_checksum'] = Web3Provider.get_web3().toHex(response['last_checksum'])
+    echo(response)
 
 
 @assets.command('search')
@@ -596,8 +658,7 @@ def events():
 
 def handle_event(event, *_):
     print(f"\n{'*'*20}"
-          f"\nEvent: {event['event']}"
-          f"\n{'-'*10}"
+          f"\n{event['blockNumber']}: {event['event']}"
           f"\n{event}"
           f"\n{'*'*20}")
 
@@ -608,10 +669,12 @@ def listen(ctx):
     ocean, account = ctx.obj['ocean'], ctx.obj['account']
     did = ocean.keeper.did_registry.get_instance()
     template = ocean.keeper.escrow_access_secretstore_template.get_instance()
+    lockreward = ocean.keeper.lock_reward_condition.get_instance()
     conditions = ocean.keeper.condition_manager.get_instance()
     filters = [
         did.events.DIDAttributeRegistered.createFilter(fromBlock='latest'),
         template.events.AgreementCreated.createFilter(fromBlock='latest'),
+        lockreward.events.Fulfilled.createFilter(fromBlock='latest'),
         conditions.events.ConditionUpdated.createFilter(fromBlock='latest')
     ]
     while True:
@@ -625,16 +688,18 @@ def listen(ctx):
 def handle_event_access(ctx, event, *_):
     ocean, account = ctx.obj['ocean'], ctx.obj['account']
     agreement_id = Web3Provider.get_web3().toHex(event['args']['_agreementId'])
-    did = id_to_did(Web3Provider.get_web3().toHex(event['args']['_did']))
-    sa = get_service_agreement_from_did(did)
     is_provider = event['args']['_accessProvider'] == account.address
     if is_provider:
         consumer = event['args']['_accessConsumer']
         time.sleep(5)
-        print(_conditions_access(agreement_id, consumer))
+        print(
+            f"Access:{agreement_id}-{consumer}",
+            _conditions_access(agreement_id, consumer))
         handle_event(event)
         time.sleep(5)
-        print(_conditions_release_reward(agreement_id))
+        print(
+            f"Release:{agreement_id}",
+            _conditions_release_reward(agreement_id))
 
 
 @events.command('access')
