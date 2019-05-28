@@ -143,6 +143,7 @@ def token_transfer(ctx, amount, to):
     ocean, account = ctx.obj['ocean'], ctx.obj['account']
     ocean.tokens.transfer(to, int(amount), account)
     echo({
+        'amount': amount,
         'from': {
             'address': account.address,
             'balance': Token.get_instance().get_token_balance(account.address),
@@ -164,16 +165,22 @@ def assets():
 
 @assets.command('create')
 @click.argument('metadata', type=click.Path())
-@click.option('--secret-store', '-s', is_flag=True)
+@click.option('--secret-store', '-ss', is_flag=True)
+@click.option('--price', '-p', default=0)
+@click.option('--service-endpoint', '-s', default='http://localhost:8000')
+@click.option('--timeout', '-t', default=3600)
 @click.pass_context
-def assets_create(ctx, metadata, secret_store):
+def assets_create(ctx, metadata, secret_store, price, service_endpoint, timeout):
     """
     Publish an asset from metadata
     """
     from .api.assets import create
     response = create(ctx.obj['ocean'], ctx.obj['account'],
                       metadata,
-                      secret_store)
+                      secret_store,
+                      price=price,
+                      service_endpoint=service_endpoint,
+                      timeout=timeout)
     echo([response])
 
 
@@ -245,18 +252,8 @@ def assets_consume(ctx, did, wait):
     """
     Consume asset: create Service Agreement, lock reward, [wait], decrypt & download
     """
-    ocean, account = ctx.obj['ocean'], ctx.obj['account']
-    from ocean_cli.api.assets import order
-    agreement_id = order(ocean, account, did)
-    i = 0
-    while ocean.agreements\
-            .is_access_granted(agreement_id, did, account.address) \
-            is not True \
-            and i < wait:
-        time.sleep(1)
-        i += 1
-    from ocean_cli.api.assets import consume
-    response = consume(ocean, account, agreement_id)
+    from ocean_cli.api.assets import order_consume
+    response = order_consume(ctx.obj['ocean'], ctx.obj['account'], did, wait)
     echo(response)
 
 

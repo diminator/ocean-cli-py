@@ -21,9 +21,9 @@ def access(ocn, account, agreement_id, consumer):
         response = False
         for _agreement_id in list_agreements(ocn, account, account.address):
             try:
-                response = access(_agreement_id, consumer)
+                response = access(ocn, account, _agreement_id, consumer)
             except Exception as e:
-                pass
+                print(e)
         return response
     ocean_conditions = OceanConditions(Keeper.get_instance())
     agreement = ocn.agreements.get(agreement_id)
@@ -37,9 +37,9 @@ def release_reward(ocn, account, agreement_id):
         response = False
         for _agreement_id in list_agreements(ocn, account, account.address):
             try:
-                response = release_reward(_agreement_id)
+                response = release_reward(ocn, account, _agreement_id)
             except Exception as e:
-                pass
+                print(e)
         return response
     amount = int(get_agreement_from_id(ocn, agreement_id).get_price())
     ocean_conditions = OceanConditions(Keeper.get_instance())
