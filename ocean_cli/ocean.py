@@ -34,6 +34,11 @@ def format_dict(ctx, response_dict):
 
 
 def echo(response):
+    if isinstance(response, list):
+        response = {
+            'items': response,
+            'total': len(response)
+        }
     click.echo(format_dict(response))
 
 
@@ -181,7 +186,36 @@ def assets_create(ctx, metadata, secret_store, price, service_endpoint, timeout)
                       price=price,
                       service_endpoint=service_endpoint,
                       timeout=timeout)
-    echo([response])
+    echo(response)
+
+
+@assets.command('push')
+@click.argument('metadata', type=click.Path())
+@click.option('--secret-store', '-ss', is_flag=True)
+@click.option('--price', '-p', default=0)
+@click.option('--service-endpoint', '-s', default='http://localhost:8000')
+@click.option('--timeout', '-t', default=3600)
+@click.pass_context
+def assets_push(ctx, metadata, secret_store, price, service_endpoint, timeout):
+    """
+    Publish an asset from metadata
+    """
+    from ocean_cli.api.assets import create
+    import os
+    files = [f for f in os.listdir('.') if os.path.isfile(f)]
+
+    response = []
+    metadata = json.load(open(metadata, 'r'))
+
+    for f in files:
+        metadata['base']['files'][0]['url'] = f
+        response += [create(ctx.obj['ocean'], ctx.obj['account'],
+                            metadata,
+                            secret_store,
+                            price=price,
+                            service_endpoint=service_endpoint,
+                            timeout=timeout)]
+    echo(response)
 
 
 @assets.command('add-providers')
@@ -222,13 +256,14 @@ def assets_get(did):
 
 @assets.command('search')
 @click.argument('text')
+@click.option('--pretty', '-p', is_flag=True)
 @click.pass_context
-def assets_search(ctx, text):
+def assets_search(ctx, text, pretty):
     """
     Search assets by keyword
     """
     from .api.assets import search
-    response = search(ctx.obj['ocean'], text)
+    response = search(ctx.obj['ocean'], text, pretty)
     echo(response)
 
 
@@ -246,14 +281,34 @@ def assets_order(ctx, did):
 
 @assets.command('consume')
 @click.argument('did')
+@click.option('--method', '-m', default='download', show_default=True)
 @click.option('--wait', '-w', default=30, show_default=True)
 @click.pass_context
-def assets_consume(ctx, did, wait):
+def assets_consume(ctx, did, method, wait):
     """
     Consume asset: create Service Agreement, lock reward, [wait], decrypt & download
     """
     from ocean_cli.api.assets import order_consume
-    response = order_consume(ctx.obj['ocean'], ctx.obj['account'], did, wait)
+    response = order_consume(ctx.obj['ocean'], ctx.obj['account'], did, method, wait)
+    echo(response)
+
+
+@assets.command('pull')
+@click.argument('text')
+@click.option('--method', '-m', default='download', show_default=True)
+@click.option('--wait', '-w', default=30, show_default=True)
+@click.pass_context
+def assets_pull(ctx, text, method, wait):
+    """
+    Pull assets: consume search
+    """
+    from ocean_cli.api.assets import order_consume, search
+    response = []
+    for did in search(ctx.obj['ocean'], text):
+        print('pulling:', did)
+        response += [
+            order_consume(ctx.obj['ocean'], ctx.obj['account'], did, method, wait)
+        ]
     echo(response)
 
 

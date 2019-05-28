@@ -64,7 +64,7 @@ def add_providers(account, did, provider):
     return did_registry.add_provider(did_to_id(did), provider, account)
 
 
-def search(ocn, text, pretty=True):
+def search(ocn, text, pretty=False):
     """
     Search assets by keyword
     """
@@ -91,7 +91,7 @@ def order(ocn, account, did):
     return agreement_id
 
 
-def consume(ocn, account, agreement_id, method='get'):
+def consume(ocn, account, agreement_id, method='download'):
     agreement = ocn.agreements.get(agreement_id)
     did = id_to_did(agreement.did)
     token = decrypt(ocn, account, did)
@@ -103,7 +103,10 @@ def consume(ocn, account, agreement_id, method='get'):
 
 def consume_get(ocn, did, token):
     service_endpoint = get_service_endpoint(ocn, did)
-    response = requests.get(service_endpoint + "/" + token[0]['url'])
+    url = ''
+    if len(token) and token[0]['url']:
+        url = token[0]['url']
+    response = requests.get(service_endpoint + "/" + url)
     return response.text
 
 
@@ -137,14 +140,16 @@ def consume_download(ocn, account, did, agreement_id, token):
     }
 
 
-def order_consume(ocn, account, did, wait=20):
+def order_consume(ocn, account, did,
+                  method='download',
+                  wait=20):
     agreement_id = order(ocn, account, did)
     i = 0
     while ocn.agreements.is_access_granted(agreement_id, did, account.address) \
             is not True and i < wait:
         time.sleep(1)
         i += 1
-    return consume(ocn, account, agreement_id)
+    return consume(ocn, account, agreement_id, method)
 
 
 def decrypt(ocn, account, did):
