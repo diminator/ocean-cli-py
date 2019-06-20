@@ -344,8 +344,8 @@ def assets_resolve(ctx, did):
     Resolve DID to DID Document
     """
     ocean, account = ctx.obj['ocean'], ctx.obj['account']
-    asset = ocean.assets.resolve(did)
-    echo(asset.as_dictionary())
+    ddo = ocean.assets.resolve(did)
+    echo(ddo.as_dictionary())
 
 
 @assets.command('list')
@@ -372,7 +372,7 @@ def agreements():
 @click.argument('did_or_address')
 @click.pass_context
 def agreements_list(ctx, did_or_address):
-    from .api.agreements import list_agreements
+    from ocean_cli.api.agreements import list_agreements
     response = list_agreements(ctx.obj['ocean'], ctx.obj['account'],
                                did_or_address)
     echo(response)

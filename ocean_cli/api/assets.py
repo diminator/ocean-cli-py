@@ -149,8 +149,10 @@ def order_consume(ocn, account, did,
             is not True and i < wait:
         time.sleep(1)
         i += 1
-    return consume(ocn, account, agreement_id, method)
-
+    return {
+        'agreement': agreement_id,
+        'response': consume(ocn, account, agreement_id, method)
+    }
 
 def decrypt(ocn, account, did):
     ddo = ocn.assets.resolve(did)
@@ -173,6 +175,7 @@ def decrypt(ocn, account, did):
             secret_store.decrypt_document(did_to_id(did), encrypted_files)
         )
     except RPCError:
+        print('Not able to decrypt')
         decrypted_content_urls = encrypted_files
 
     if isinstance(decrypted_content_urls, str):
