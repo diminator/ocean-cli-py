@@ -1,3 +1,4 @@
+import os
 import click
 import json
 import logging
@@ -7,7 +8,7 @@ import time
 from squid_py import ConfigProvider
 from squid_py.accounts.account import Account
 from squid_py.config import Config
-from squid_py.did import did_to_id_bytes, id_to_did, did_to_id, DID
+from squid_py.did import id_to_did, did_to_id, DID
 from squid_py.keeper import Keeper, Token
 from squid_py.keeper.web3_provider import Web3Provider
 from squid_py.ocean.ocean import Ocean
@@ -170,38 +171,58 @@ def assets():
 
 @assets.command('create')
 @click.argument('metadata', type=click.Path())
-@click.option('--secret-store', '-ss', is_flag=True)
+@click.option('--brizo', '-b', is_flag=True)
 @click.option('--price', '-p', default=0)
 @click.option('--service-endpoint', '-s', default='http://localhost:8000')
 @click.option('--timeout', '-t', default=3600)
 @click.pass_context
-def assets_create(ctx, metadata, secret_store, price, service_endpoint, timeout):
+def assets_create(ctx, metadata, brizo, price, service_endpoint, timeout):
     """
     Publish an asset from metadata
     """
     from .api.assets import create
     response = create(ctx.obj['ocean'], ctx.obj['account'],
                       metadata,
-                      secret_store,
+                      secret_store=not brizo,
                       price=price,
                       service_endpoint=service_endpoint,
                       timeout=timeout)
     echo(response)
 
 
+@assets.command('consume')
+@click.argument('did')
+@click.option('--method', '-m', default='get', show_default=True,
+              type=click.Choice(['get', 'api', 'brizo']))
+@click.pass_context
+def assets_consume(ctx, did, method):
+    """
+    Consume asset: create Service Agreement, lock reward, [wait], decrypt & download
+    """
+    from ocean_cli.api.assets import authorize, consume
+    response = consume(ctx.obj['ocean'], ctx.obj['account'],
+                       did,
+                       *authorize(ctx.obj['ocean'], ctx.obj['account'], did),
+                       method=method)
+    if method in ['get', 'api']:
+        try:
+            response = response.json()
+        except json.decoder.JSONDecodeError:
+            response = response.text
+    echo(response)
+
+
 @assets.command('push')
 @click.argument('metadata', type=click.Path())
-@click.option('--secret-store', '-ss', is_flag=True)
+@click.option('--brizo', '-brizo', is_flag=True)
 @click.option('--price', '-p', default=0)
 @click.option('--service-endpoint', '-s', default='http://localhost:8000')
 @click.option('--timeout', '-t', default=3600)
 @click.pass_context
-def assets_push(ctx, metadata, secret_store, price, service_endpoint, timeout):
+def assets_push(ctx, metadata, brizo, price, service_endpoint, timeout):
     """
-    Publish an asset from metadata
+    Publish all files in current directory
     """
-    from ocean_cli.api.assets import create
-    import os
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
 
     response = []
@@ -209,13 +230,30 @@ def assets_push(ctx, metadata, secret_store, price, service_endpoint, timeout):
 
     for f in files:
         metadata['base']['files'][0]['url'] = f
-        response += [create(ctx.obj['ocean'], ctx.obj['account'],
-                            metadata,
-                            secret_store,
-                            price=price,
-                            service_endpoint=service_endpoint,
-                            timeout=timeout)]
-    echo(response)
+        response += [ctx.invoke(assets_create,
+                                metadata=metadata,
+                                brizo=brizo,
+                                price=price,
+                                service_endpoint=service_endpoint,
+                                timeout=timeout)]
+
+
+@assets.command('pull')
+@click.argument('text')
+@click.option('--method', '-m', default='get', show_default=True)
+@click.pass_context
+def assets_pull(ctx, text, method):
+    """
+    Consume all assets on TEXT search
+    """
+    from ocean_cli.api.assets import search
+    ocean, account = ctx.obj['ocean'], ctx.obj['account']
+    response = []
+    for did in search(ocean, text):
+        print('pulling:', did)
+        response += [ctx.invoke(assets_consume,
+                                did=did,
+                                method=method)]
 
 
 @assets.command('add-providers')
@@ -279,39 +317,6 @@ def assets_order(ctx, did):
     echo([response])
 
 
-@assets.command('consume')
-@click.argument('did')
-@click.option('--method', '-m', default='download', show_default=True)
-@click.option('--wait', '-w', default=30, show_default=True)
-@click.pass_context
-def assets_consume(ctx, did, method, wait):
-    """
-    Consume asset: create Service Agreement, lock reward, [wait], decrypt & download
-    """
-    from ocean_cli.api.assets import order_consume
-    response = order_consume(ctx.obj['ocean'], ctx.obj['account'], did, method, wait)
-    echo(response)
-
-
-@assets.command('pull')
-@click.argument('text')
-@click.option('--method', '-m', default='download', show_default=True)
-@click.option('--wait', '-w', default=30, show_default=True)
-@click.pass_context
-def assets_pull(ctx, text, method, wait):
-    """
-    Pull assets: consume search
-    """
-    from ocean_cli.api.assets import order_consume, search
-    response = []
-    for did in search(ctx.obj['ocean'], text):
-        print('pulling:', did)
-        response += [
-            order_consume(ctx.obj['ocean'], ctx.obj['account'], did, method, wait)
-        ]
-    echo(response)
-
-
 @assets.command('decrypt')
 @click.argument('did')
 @click.pass_context
@@ -331,8 +336,8 @@ def assets_consume_agreement(ctx, agreement_id):
     """
     Consume agreement: decrypt and download
     """
-    from .api.assets import consume
-    response = consume(ctx.obj['ocean'], ctx.obj['account'], agreement_id)
+    from .api.assets import consume_agreement
+    response = consume_agreement(ctx.obj['ocean'], ctx.obj['account'], agreement_id)
     echo(response)
 
 
@@ -502,9 +507,9 @@ def conditions_release_reward(ctx, agreement_id):
 @click.argument('did')
 @click.pass_context
 def conditions_check_permissions(ctx, did):
+    from .api.conditions import check_permissions
     ocean, account = ctx.obj['ocean'], ctx.obj['account']
-    access_ = ocean.keeper.access_secret_store_condition.get_instance()
-    response = access_.check_permissions(did_to_id_bytes(did), account.address)
+    response = check_permissions(ocean, account, did)
     echo({
         "response": response
     })
@@ -596,6 +601,22 @@ def decrypt(ctx, doc_id, cipher_text):
     echo({
         'decryptedDocument': decrypted_document
     })
+
+
+@ocean.group()
+def notebook():
+    """
+    Convert DIDs into python notebooks
+    """
+    pass
+
+
+@notebook.command('create')
+@click.argument('did')
+def create(did):
+    from ocean_cli.api.notebook import create_notebook
+    response = create_notebook(did, did)
+    echo(response)
 
 
 if __name__ == "__main__":

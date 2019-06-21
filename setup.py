@@ -14,7 +14,12 @@ from setuptools import setup
 # Installed by pip install squid-py
 # or pip install -e .
 install_requirements = [
+    'jupyter==1.0.0',
+    'pandas==0.24.2',
+    'Flask==1.0.3',
+    'docker==4.0.2',
     'Click==7.0',
+    'jupytext==1.1.6',
     'squid-py==0.6.4',
     # web3 requires eth-abi, requests, and more,
     # so those will be installed too.

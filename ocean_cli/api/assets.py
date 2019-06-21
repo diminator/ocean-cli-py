@@ -1,6 +1,6 @@
 import json
 import os
-import time
+import time, datetime
 
 import requests
 from secret_store_client.client import RPCError
@@ -11,14 +11,33 @@ from squid_py.did import id_to_did, did_to_id
 from squid_py.keeper import Keeper, DIDRegistry
 from squid_py.keeper.didregistry import DIDRegisterValues
 from squid_py.keeper.web3_provider import Web3Provider
-
 from squid_py.brizo import BrizoProvider
 
 
-def create(ocn, account, metadata, secret_store,
+def make_metadata(name, author, files, price,
+                  license='CC0: Public Domain',
+                  type='dataset'):
+    if isinstance(files, str):
+        files = [{"url": files}]
+    return {
+      "base": {
+        "name": name,
+        "dateCreated": str(datetime.datetime.now()),
+        "author": author,
+        "license": license,
+        "price": price,
+        "files": files,
+        "type": type
+      }
+    }
+
+
+def create(ocean, account,
+           metadata,
+           secret_store=True,
            price=0,
            purchase_endpoint='https://marketplace.ocean',
-           service_endpoint='http://localhost:8000',
+           service_endpoint='/',
            timeout=3600):
     """
     Publish an asset from metadata
@@ -26,17 +45,16 @@ def create(ocn, account, metadata, secret_store,
     if not isinstance(metadata, dict):
         # Assume it is a path to metadata json file
         metadata = json.load(open(metadata, 'r'))
-    metadata['base']['price'] = price
     service_descriptors = [
         ServiceDescriptor.access_service_descriptor(
             price,
             purchase_endpoint,
             service_endpoint,
             timeout,
-            ocn.keeper.escrow_access_secretstore_template.address
+            ocean.keeper.escrow_access_secretstore_template.address
         )
     ]
-    ddo = ocn.assets.create(
+    ddo = ocean.assets.create(
         metadata,
         account,
         service_descriptors=service_descriptors,
@@ -46,72 +64,79 @@ def create(ocn, account, metadata, secret_store,
     return ddo.did
 
 
-def get(did):
-    register_values = Keeper.get_instance().did_registry.contract_concise\
-        .getDIDRegister(did_to_id(did))
-    response = []
-    if register_values and len(register_values) == 5:
-        response = DIDRegisterValues(*register_values)._asdict()
-        response['last_checksum'] = Web3Provider.get_web3()\
-            .toHex(response['last_checksum'])
-    return response
+def publish(ocean, account,
+            name,
+            secret,
+            price=0,
+            service_endpoint='/'):
+    return create(ocean, account,
+                  metadata=make_metadata(
+                      name=name,
+                      author=account.address,
+                      files=secret,
+                      price=price),
+                  secret_store=True,
+                  price=price,
+                  service_endpoint=service_endpoint)
 
 
-def add_providers(account, did, provider):
-    if provider == 'me':
-        provider = account.address
-    did_registry = Keeper.get_instance().did_registry
-    return did_registry.add_provider(did_to_id(did), provider, account)
+def authorize(ocean, account, did):
+    from ocean_cli.api.conditions import check_permissions
+
+    # order
+    if not check_permissions(ocean, account, did):
+        agreement_id = order(ocean, account, did)
+    else:
+        # TODO: get agreement id for did & consumer
+        agreement_id = None
+
+    # get credentials
+    service_endpoint, url, token = credentials(ocean, account, did)
+    return agreement_id, service_endpoint, url, token
 
 
-def search(ocn, text, pretty=False):
-    """
-    Search assets by keyword
-    """
-    result = ocn.assets.search(text, sort=None, offset=100, page=1)
-    if pretty:
-        response = []
-        for ddo in result:
-            response += [f"{ddo.metadata['base']['name']}"
-                         f" - {ddo.metadata['base']['author']}"
-                         f" - {ddo.metadata['base']['price']}"
-                         f" - {ddo.metadata['base']['type']}"]
-        return response
-    return [ddo.did for ddo in result]
-
-
-def order(ocn, account, did):
-    from .agreements import get_agreement_from_did
-    from .conditions import lock_reward
-    sa = get_agreement_from_did(ocn, did)
-    agreement_id = ocn.assets\
-        .order(did, sa.service_definition_id, account, True)
-    lock_reward(ocn, account, agreement_id)
-
-    return agreement_id
-
-
-def consume(ocn, account, agreement_id, method='download'):
-    agreement = ocn.agreements.get(agreement_id)
-    did = id_to_did(agreement.did)
-    token = decrypt(ocn, account, did)
-    if method == 'download':
-        return consume_download(ocn, account, did, agreement_id, token)
+def credentials(ocean, account, did):
+    service_endpoint = get_service_endpoint(ocean, did)
+    secret = decrypt(ocean, account, did)[0]
+    url = secret.get('url', None)
+    token = secret.get('token', None)
+    return service_endpoint, url, token
+    
+    
+def consume(ocean, account,
+            did,
+            agreement_id,
+            service_endpoint,
+            url,
+            token,
+            method='get'):
+    if method == 'brizo':
+        return consume_brizo(ocean, account, did, agreement_id, token)
     elif method == 'get':
-        return consume_get(ocn, did, token)
+        return consume_get(url)
+    elif method == 'api':
+        return consume_api(account, did, service_endpoint, url, token)
 
 
-def consume_get(ocn, did, token):
-    service_endpoint = get_service_endpoint(ocn, did)
-    url = ''
-    if len(token) and token[0]['url']:
-        url = token[0]['url']
-    response = requests.get(service_endpoint + "/" + url)
-    return response.text
+def consume_agreement(ocean, account, agreement_id, method):
+    agreement = ocean.agreements.get(agreement_id)
+    did = id_to_did(agreement.did)
+    service_endpoint, url, token = credentials(ocean, account, did)
+    return consume(ocean, account, did, agreement_id, service_endpoint, url, token, method)
 
 
-def consume_download(ocn, account, did, agreement_id, token):
-    service_endpoint = get_service_endpoint(ocn, did)
+def consume_get(url):
+    return requests.get(f'{url}')
+
+
+def consume_api(account, did, service_endpoint, url, token):
+    return requests.get(
+        f'{service_endpoint}/{url}'
+        f'?token={token}&did={did}&address={account.address}')
+
+
+def consume_brizo(ocean, account, did, agreement_id, token):
+    service_endpoint = get_service_endpoint(ocean, did)
 
     destination = ConfigProvider.get_config().downloads_path
     if not os.path.isabs(destination):
@@ -140,29 +165,75 @@ def consume_download(ocn, account, did, agreement_id, token):
     }
 
 
-def order_consume(ocn, account, did,
+def get(did):
+    register_values = Keeper.get_instance().did_registry.contract_concise\
+        .getDIDRegister(did_to_id(did))
+    response = []
+    if register_values and len(register_values) == 5:
+        response = DIDRegisterValues(*register_values)._asdict()
+        response['last_checksum'] = Web3Provider.get_web3()\
+            .toHex(response['last_checksum'])
+    return response
+
+
+def add_providers(account, did, provider):
+    if provider == 'me':
+        provider = account.address
+    did_registry = Keeper.get_instance().did_registry
+    return did_registry.add_provider(did_to_id(did), provider, account)
+
+
+def search(ocean, text, pretty=False):
+    """
+    Search assets by keyword
+    """
+    result = ocean.assets.search(text, sort=None, offset=100, page=1)
+    if pretty:
+        response = []
+        for ddo in result:
+            response += [f"{ddo.metadata['base']['name']}"
+                         f" - {ddo.metadata['base']['author']}"
+                         f" - {ddo.metadata['base']['price']}"
+                         f" - {ddo.metadata['base']['type']}"]
+        return response
+    return [ddo.did for ddo in result]
+
+
+def order(ocean, account, did):
+    from .agreements import get_agreement_from_did
+    from .conditions import lock_reward
+    sa = get_agreement_from_did(ocean, did)
+    agreement_id = ocean.assets\
+        .order(did, sa.service_definition_id, account, True)
+    lock_reward(ocean, account, agreement_id)
+
+    return agreement_id
+
+
+def order_consume(ocean, account, did,
                   method='download',
                   wait=20):
-    agreement_id = order(ocn, account, did)
+    agreement_id = order(ocean, account, did)
     i = 0
-    while ocn.agreements.is_access_granted(agreement_id, did, account.address) \
+    while ocean.agreements.is_access_granted(agreement_id, did, account.address) \
             is not True and i < wait:
         time.sleep(1)
         i += 1
     return {
         'agreement': agreement_id,
-        'response': consume(ocn, account, agreement_id, method)
+        'response': consume_agreement(ocean, account, agreement_id, method)
     }
 
-def decrypt(ocn, account, did):
-    ddo = ocn.assets.resolve(did)
+
+def decrypt(ocean, account, did):
+    ddo = ocean.assets.resolve(did)
     encrypted_files = ddo.metadata['base']['encryptedFiles']
     encrypted_files = (
         encrypted_files if isinstance(encrypted_files, str)
         else encrypted_files[0]
     )
 
-    secret_store = ocn.assets._get_secret_store(account)
+    secret_store = ocean.assets._get_secret_store(account)
     if ddo.get_service('Authorization'):
         secret_store_service = ddo.get_service(
             service_type=ServiceTypes.AUTHORIZATION)
@@ -183,7 +254,7 @@ def decrypt(ocn, account, did):
     return decrypted_content_urls
 
 
-def list_assets(ocn, account, address):
+def list_assets(ocean, account, address):
     did_registry = DIDRegistry.get_instance()
     did_registry_ids = did_registry.contract_concise.getDIDRegisterIds()
     did_list = [
@@ -196,7 +267,7 @@ def list_assets(ocn, account, address):
         result = []
         for did in did_list:
             try:
-                asset_owner = ocn.assets.resolve(did).as_dictionary()['publicKey'][0]['owner']
+                asset_owner = ocean.assets.resolve(did).as_dictionary()['publicKey'][0]['owner']
                 if asset_owner == address:
                     result += [did]
             except ValueError:
@@ -205,8 +276,8 @@ def list_assets(ocn, account, address):
     return did_list
 
 
-def get_service_endpoint(ocn, did):
-    ddo = ocn.assets.resolve(did)
+def get_service_endpoint(ocean, did):
+    ddo = ocean.assets.resolve(did)
     service = ddo.get_service(service_type=ServiceTypes.ASSET_ACCESS)
     service_id = service.service_definition_id
     return ServiceAgreement.from_ddo(service_id, ddo).service_endpoint

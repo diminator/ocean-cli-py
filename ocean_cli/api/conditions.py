@@ -1,7 +1,7 @@
 import time
 
 from ocean_cli.api.agreements import get_agreement_from_id, list_agreements
-from squid_py.did import id_to_did
+from squid_py.did import id_to_did, did_to_id_bytes
 from squid_py.keeper import Keeper
 from squid_py.ocean.ocean_conditions import OceanConditions
 
@@ -32,6 +32,12 @@ def access(ocn, account, agreement_id, consumer):
                                          consumer, account)
 
 
+def check_permissions(ocn, account, did, address=None):
+    address = address or account.address
+    access_ = ocn.keeper.access_secret_store_condition.get_instance()
+    return access_.check_permissions(did_to_id_bytes(did), address)
+
+
 def release_reward(ocn, account, agreement_id):
     if agreement_id == 'all':
         response = False
@@ -51,11 +57,11 @@ def release_reward(ocn, account, agreement_id):
 
 
 def access_release(ocn, account, agreement_id, consumer):
-    time.sleep(5)
+    time.sleep(4)
     print(
         f"Access:{agreement_id}-{consumer}",
         access(ocn, account, agreement_id, consumer))
-    time.sleep(5)
+    time.sleep(2)
     print(
         f"Release:{agreement_id}",
         release_reward(ocn, account, agreement_id))
