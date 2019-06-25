@@ -38,15 +38,52 @@ def list_agreements(did_or_address, ocean=None):
     return agreement_ids
 
 
-def create(ocn, account, did, service_id):
-    agreement_id, signature = ocn.agreements.prepare(
+def create(ocean, account, did, service_id):
+    agreement_id, signature = ocean.agreements.prepare(
         did, service_id, account
     )
-    result = ocn.agreements.create(did, service_id, agreement_id,
-                                   signature, account.address, account)
+    result = create_agreement(did,
+                              service_id,
+                              agreement_id,
+                              account.address,
+                              ocean=ocean)
     return {
         'agreement': agreement_id,
         'signature': signature,
         'result': result
     }
 
+
+def create_agreement(did,
+                     service_definition_id,
+                     agreement_id,
+                     consumer_address,
+                     ocean=None):
+    assert consumer_address and Web3Provider.get_web3().isChecksumAddress(
+        consumer_address), f'Invalid consumer address {consumer_address}'
+
+    asset = ocean.assets.resolve(did)
+    asset_id = asset.asset_id
+    service_agreement = ServiceAgreement.from_ddo(service_definition_id, asset)
+    agreement_template = ocean.keeper.escrow_access_secretstore_template.get_instance()
+
+    publisher_address = Web3Provider.get_web3().toChecksumAddress(asset.publisher)
+    condition_ids = service_agreement\
+        .generate_agreement_condition_ids(
+            agreement_id,
+            asset_id,
+            consumer_address,
+            publisher_address,
+            ocean.keeper
+        )
+    time_locks = service_agreement.conditions_timelocks
+    time_outs = service_agreement.conditions_timeouts
+    return agreement_template.create_agreement(
+        agreement_id,
+        asset_id,
+        condition_ids,
+        time_locks,
+        time_outs,
+        consumer_address,
+        ocean.account
+    )

@@ -13,6 +13,8 @@ from squid_py.keeper.didregistry import DIDRegisterValues
 from squid_py.keeper.web3_provider import Web3Provider
 from squid_py.brizo import BrizoProvider
 
+from ocean_cli.api.agreements import create_agreement
+
 
 def make_metadata(name, author, files, price,
                   license='CC0: Public Domain',
@@ -80,7 +82,7 @@ def publish(name,
                   ocean=ocean)
 
 
-def authorize(did, ocean=None):
+def authorize(did, ocean=None, wait=5):
     from ocean_cli.api.conditions import check_permissions
 
     # order
@@ -91,8 +93,13 @@ def authorize(did, ocean=None):
         agreement_id = None
 
     # get credentials
-    service_endpoint, secret = credentials(ocean, did)
-    return agreement_id, service_endpoint, secret
+    for _ in range(wait):
+        service_endpoint, secret = credentials(ocean, did)
+        if isinstance(secret, dict):
+            return agreement_id, service_endpoint, secret
+        print(secret)
+        time.sleep(1)
+    return agreement_id, None, None
 
 
 def credentials(ocean, did):
@@ -202,26 +209,17 @@ def order(did, ocean=None):
     from .agreements import get_agreement_from_did
     from .conditions import lock_reward
     sa = get_agreement_from_did(ocean, did)
-    agreement_id = ocean.assets\
-        .order(did, sa.service_definition_id, ocean.account, True)
+    agreement_id = ocean.agreements.new()
+    create_agreement(
+        did,
+        sa.service_definition_id,
+        agreement_id,
+        ocean.account.address,
+        ocean=ocean
+    )
     lock_reward(ocean, ocean.account, agreement_id)
 
     return agreement_id
-
-
-def order_consume(ocean, account, did,
-                  method='download',
-                  wait=20):
-    agreement_id = ocean.order(did)
-    i = 0
-    while ocean.agreements.is_access_granted(agreement_id, did, account.address) \
-            is not True and i < wait:
-        time.sleep(1)
-        i += 1
-    return {
-        'agreement': agreement_id,
-        'response': consume_agreement(ocean, account, agreement_id, method)
-    }
 
 
 def decrypt(did, ocean=None):

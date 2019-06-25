@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 
 from squid_py.did import did_to_id_bytes
+
 from ocean_cli.ocean import get_ocean
 from ocean_cli.api.notebook import snippet_object
 
@@ -16,6 +17,7 @@ def verify(did, address, token):
             access_secret_store_condition.get_instance(). \
             check_permissions(did_to_id_bytes(did), address)
 
+    print('secret store permission:', grant_secret_store)
     grant_token = False
     if token:
         # TODO check did.provider == me
@@ -53,6 +55,11 @@ def proxy(path):
         longitude = request.args.get('longitude', 3)
         zoom = request.args.get('zoom', 10)
         return generate_map(latitude, longitude, zoom)
+
+    if path == 'locationAnimation':
+        from location_heatmap import generate_animation
+        epochs = request.args.get('epochs', 10)
+        return generate_animation(epochs=int(epochs))
 
     print(response)
     return jsonify(response)

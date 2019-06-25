@@ -591,19 +591,8 @@ def listen(ctx):
 @events.command('access')
 @click.pass_context
 def access(ctx):
-    ocean = ctx.obj['ocean']
-    template = ocean.keeper.escrow_access_secretstore_template.get_instance()
-    filter = template.events.AgreementCreated.createFilter(fromBlock='latest')
-    while True:
-        for event in filter.get_new_entries():
-            access_provider = event['args']['_accessProvider']
-            if access_provider == ocean.account.address:
-                agreement_id = Web3Provider.get_web3().toHex(
-                    event['args']['_agreementId'])
-                access_consumer = event['args']['_accessConsumer']
-                from .api.conditions import access_release
-                access_release(ocean, ocean.account, agreement_id, access_consumer)
-        time.sleep(0.5)
+    from ocean_cli.api.events import listen_lock_reward
+    listen_lock_reward(ocean=ctx.obj['ocean'])
 
 
 @ocean.group()

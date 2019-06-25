@@ -3,10 +3,12 @@ import json
 import os.path
 
 import pandas as pd
-import geopandas as gpd
+import numpy as np
+
 import folium
 from folium import plugins
-from shapely.geometry import Point
+from branca.element import MacroElement
+from jinja2 import Template
 
 
 from flask import Flask, Response
@@ -14,6 +16,37 @@ from flask import Flask, Response
 
 app = Flask(__name__)
 app.config.from_object(__name__)
+
+
+class FloatMacro(MacroElement):
+    """Adds a floating image in HTML canvas on top of the map."""
+    _template = Template("""
+            {% macro header(this,kwargs) %}
+                <style>
+                    #{{this.get_name()}} {
+                        position:absolute;
+                        left:{{this.left}}%;
+                        top:{{this.left}}%;
+                        }
+                </style>
+            {% endmacro %}
+
+            {% macro html(this,kwargs) %}
+            <img id="{{this.get_name()}}" alt="float_image"
+                 src="{{ this.image }}"
+                 width="{{ this.width }}"
+                 style="z-index: 999999">
+            </img>
+            {% endmacro %}
+            """)
+
+    def __init__(self, image, top=75, left=75, width=75):
+        super(FloatMacro, self).__init__()
+        self._name = 'FloatImage'
+        self.image = image
+        self.top = top
+        self.left = left
+        self.width = width
 
 
 def root_dir():  # pragma: no cover
@@ -33,48 +66,72 @@ def get_file(filename):  # pragma: no cover
         return str(exc)
 
 
-def generate_map(latitude, longitude, zoom):
-    with open('data/Location History.short.json', 'r') as fh:
+def load(path='data/Location History.short.json'):
+    with open(path, 'r') as fh:
         raw = json.loads(fh.read())
 
     # use location_data as an abbreviation for location data
     location_data = pd.DataFrame(raw['locations'])
     del raw  # free up some memory
-
     print('data loaded')
-    location_data = location_data[location_data.accuracy < 1000]
+    return location_data
 
-    location_data['latitudeE7'] = location_data['latitudeE7']/float(1e7)
-    location_data['longitudeE7'] = location_data['longitudeE7']/float(1e7)
-    location_data['timestampMs'] = location_data['timestampMs']\
-        .map(lambda x: float(x)/1000)  # to seconds
-    location_data['datetime'] = location_data.timestampMs\
+
+def prepare(df):
+    df['latitudeE7'] = df['latitudeE7'] / float(1e7)
+    df['longitudeE7'] = df['longitudeE7'] / float(1e7)
+    df['timestampMs'] = df['timestampMs'] \
+        .map(lambda x: float(x) / 1000)  # to seconds
+    df['datetime'] = df.timestampMs \
         .map(datetime.datetime.fromtimestamp)
 
-    location_data.rename(columns={
+    df.rename(columns={
         'latitudeE7': 'latitude',
         'longitudeE7': 'longitude',
         'timestampMs': 'timestamp'
     }, inplace=True)
     # Ignore locations with accuracy estimates over 1000m
-    location_data.reset_index(drop=True, inplace=True)
-    print('data parsed')
-    geometry = [Point(xy) for xy in
-                zip(location_data['longitude'], location_data['latitude'])]
+    df.reset_index(drop=True, inplace=True)
+    print('data prepared')
+    return df
 
-    crs = {'init': 'epsg:4326'}
-    geo_df = gpd.GeoDataFrame(location_data, crs=crs, geometry=geometry)
+
+def generate_map(latitude, longitude, zoom):
+    location_data = load()
+
+    location_data = location_data[location_data.accuracy < 1000]
+    location_data = prepare(location_data)
 
     m = folium.Map([latitude, longitude], zoom_start=zoom)
-
-    geo_matrix = geo_df[['latitude', 'longitude']].as_matrix()
+    geo_matrix = location_data[['latitude', 'longitude']].values
 
     m.add_child(plugins.HeatMap(geo_matrix, radius=15))
     m.add_child(folium.LatLngPopup())
-
-    print('map generated')
     fn = 'index.html'
     m.save(fn)
     content = get_file(fn)
     return Response(content, mimetype="text/html")
-    # return send_file('inddex', mimetype='image/png')
+
+
+def generate_animation(epochs=10):
+    location_data = load()
+
+    location_data = location_data[location_data.accuracy < 1000]
+    location_data = prepare(location_data)
+
+    m = folium.Map([location_data.latitude.median(),
+                    location_data.longitude.median()],
+                   zoom_start=9)
+    heat_df = np.array_split(location_data, epochs)
+    # List comprehension to make out list of lists
+    heat_data = [
+        [[row['latitude'], row['longitude']] for index, row in _df.iterrows()]
+        for _df in heat_df]
+
+    plugins.HeatMapWithTime(heat_data, auto_play=True, max_opacity=0.8).add_to(m)
+    m.add_child(folium.LatLngPopup())
+    fn = 'index.html'
+    m.save(fn)
+    content = get_file(fn)
+    return Response(content, mimetype="text/html")
+
