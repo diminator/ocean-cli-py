@@ -4,13 +4,13 @@ import json
 
 
 def snippet_header():
-    return f'''from ocean_cli.api.assets import authorize'''
+    return f'''from ocean_cli.ocean import get_ocean'''
 
 
 def snippet_object(did):
 
     return f'''
-response = authorize(ocean, account, '{did}')
+response = get_ocean('config.ini').authorize('{did}')
 response
 '''
 

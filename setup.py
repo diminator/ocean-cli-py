@@ -15,7 +15,10 @@ from setuptools import setup
 # or pip install -e .
 install_requirements = [
     'jupyter==1.0.0',
+    'autopep8==1.4.4',  # nbextensions
     'pandas==0.24.2',
+    'geopandas==0.5.0',
+    'folium==0.9.1',
     'Flask==1.0.3',
     'docker==4.0.2',
     'Click==7.0',

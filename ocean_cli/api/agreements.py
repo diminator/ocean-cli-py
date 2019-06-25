@@ -17,7 +17,7 @@ def get_agreement_from_id(ocn, agreement_id):
     return get_agreement_from_did(ocn, did)
 
 
-def list_agreements(ocn, account, did_or_address):
+def list_agreements(did_or_address, ocean=None):
     try:
         assert(is_did_valid(did_or_address), True)
         agreement_store = AgreementStoreManager.get_instance()
@@ -28,12 +28,11 @@ def list_agreements(ocn, account, did_or_address):
         ]
     except Exception as e:
         if did_or_address == 'me':
-            did_or_address = account.address
+            did_or_address = ocean.account.address
         agreement_ids = []
-        from ocean_cli.api.assets import list_assets
-        for did in list_assets(ocn, account, did_or_address):
+        for did in ocean.assets.list(did_or_address):
             try:
-                agreement_ids += list_agreements(ocn, account, did)
+                agreement_ids += list_agreements(did, ocean)
             except ValueError as e:
                 pass
     return agreement_ids

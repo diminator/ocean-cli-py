@@ -1,14 +1,10 @@
 from flask import Flask, request, jsonify
-from ocean_cli.api.assets import decrypt
 
-from squid_py.config import Config
 from squid_py.did import did_to_id_bytes
-from squid_py.ocean.ocean import Ocean
-from ocean_cli.ocean import get_default_account
+from ocean_cli.ocean import get_ocean
+from ocean_cli.api.notebook import snippet_object
 
-config = Config(filename='./config.ini')
-ocean = Ocean(config)
-account = get_default_account(config)
+ocean = get_ocean('config.ini')
 
 app = Flask(__name__)
 
@@ -23,7 +19,8 @@ def verify(did, address, token):
     grant_token = False
     if token:
         # TODO check did.provider == me
-        grant_token = decrypt(ocean, account, did)[0]['token'] == token
+        token_decrypted = ocean.decrypt(did)[0]['token'].split('&')[0]
+        grant_token = token_decrypted == token
 
     return grant_secret_store and grant_token
 
@@ -42,12 +39,20 @@ def proxy(path):
     token = request.args.get('token', None)
 
     if not did or not verify(did, address, token):
-        return f'NO ACCESS! First order DID: {did}', 402
+        return f'NO ACCESS! Order DID: {did}\n\n{snippet_object(did)}', 402
 
+    print(f'ACCESS granted for {did} to {address} with {token}')
     if path == 'run':
         import docker
         client = docker.from_env()
         response = client.containers.run("hello-world").decode()
+
+    if path == 'locationMap':
+        from location_heatmap import generate_map
+        latitude = request.args.get('latitude', 39.7)
+        longitude = request.args.get('longitude', 3)
+        zoom = request.args.get('zoom', 10)
+        return generate_map(latitude, longitude, zoom)
 
     print(response)
     return jsonify(response)

@@ -32,13 +32,13 @@ def make_metadata(name, author, files, price,
     }
 
 
-def create(ocean, account,
-           metadata,
+def create(metadata,
            secret_store=True,
            price=0,
            purchase_endpoint='https://marketplace.ocean',
            service_endpoint='/',
-           timeout=3600):
+           timeout=3600,
+           ocean=None):
     """
     Publish an asset from metadata
     """
@@ -56,73 +56,72 @@ def create(ocean, account,
     ]
     ddo = ocean.assets.create(
         metadata,
-        account,
+        ocean.account,
         service_descriptors=service_descriptors,
-        providers=[account.address],
+        providers=[ocean.account.address],
         use_secret_store=secret_store
     )
     return ddo.did
 
 
-def publish(ocean, account,
-            name,
+def publish(name,
             secret,
             price=0,
-            service_endpoint='/'):
-    return create(ocean, account,
-                  metadata=make_metadata(
+            service_endpoint='/',
+            ocean=None):
+    return create(metadata=make_metadata(
                       name=name,
-                      author=account.address,
+                      author=ocean.account.address,
                       files=secret,
                       price=price),
                   secret_store=True,
                   price=price,
-                  service_endpoint=service_endpoint)
+                  service_endpoint=service_endpoint,
+                  ocean=ocean)
 
 
-def authorize(ocean, account, did):
+def authorize(did, ocean=None):
     from ocean_cli.api.conditions import check_permissions
 
     # order
-    if not check_permissions(ocean, account, did):
-        agreement_id = order(ocean, account, did)
+    if not check_permissions(ocean, ocean.account, did):
+        agreement_id = ocean.order(did)
     else:
         # TODO: get agreement id for did & consumer
         agreement_id = None
 
     # get credentials
-    service_endpoint, url, token = credentials(ocean, account, did)
-    return agreement_id, service_endpoint, url, token
+    service_endpoint, secret = credentials(ocean, did)
+    return agreement_id, service_endpoint, secret
 
 
-def credentials(ocean, account, did):
+def credentials(ocean, did):
     service_endpoint = get_service_endpoint(ocean, did)
-    secret = decrypt(ocean, account, did)[0]
-    url = secret.get('url', None)
-    token = secret.get('token', None)
-    return service_endpoint, url, token
+    secret = ocean.decrypt(did)[0]
+    return service_endpoint, secret
     
     
-def consume(ocean, account,
-            did,
+def consume(did,
             agreement_id,
             service_endpoint,
-            url,
-            token,
-            method='get'):
+            secret,
+            method='get',
+            ocean=None):
+    token = secret.get('token', None)
+    url = secret.get('url', None)
     if method == 'brizo':
-        return consume_brizo(ocean, account, did, agreement_id, token)
+        return consume_brizo(ocean, ocean.account, did, agreement_id, token)
     elif method == 'get':
         return consume_get(url)
     elif method == 'api':
-        return consume_api(account, did, service_endpoint, url, token)
+        return consume_api(ocean.account, did, service_endpoint, url, token)
 
 
-def consume_agreement(ocean, account, agreement_id, method):
+def consume_agreement(ocean, agreement_id, method):
     agreement = ocean.agreements.get(agreement_id)
     did = id_to_did(agreement.did)
-    service_endpoint, url, token = credentials(ocean, account, did)
-    return consume(ocean, account, did, agreement_id, service_endpoint, url, token, method)
+    service_endpoint, secret = credentials(ocean, did)
+    return consume(did, agreement_id, service_endpoint, secret, method, ocean=ocean)
 
 
 def consume_get(url):
@@ -183,7 +182,7 @@ def add_providers(account, did, provider):
     return did_registry.add_provider(did_to_id(did), provider, account)
 
 
-def search(ocean, text, pretty=False):
+def search(text, pretty=False, ocean=None):
     """
     Search assets by keyword
     """
@@ -199,13 +198,13 @@ def search(ocean, text, pretty=False):
     return [ddo.did for ddo in result]
 
 
-def order(ocean, account, did):
+def order(did, ocean=None):
     from .agreements import get_agreement_from_did
     from .conditions import lock_reward
     sa = get_agreement_from_did(ocean, did)
     agreement_id = ocean.assets\
-        .order(did, sa.service_definition_id, account, True)
-    lock_reward(ocean, account, agreement_id)
+        .order(did, sa.service_definition_id, ocean.account, True)
+    lock_reward(ocean, ocean.account, agreement_id)
 
     return agreement_id
 
@@ -213,7 +212,7 @@ def order(ocean, account, did):
 def order_consume(ocean, account, did,
                   method='download',
                   wait=20):
-    agreement_id = order(ocean, account, did)
+    agreement_id = ocean.order(did)
     i = 0
     while ocean.agreements.is_access_granted(agreement_id, did, account.address) \
             is not True and i < wait:
@@ -225,7 +224,7 @@ def order_consume(ocean, account, did,
     }
 
 
-def decrypt(ocean, account, did):
+def decrypt(did, ocean=None):
     ddo = ocean.assets.resolve(did)
     encrypted_files = ddo.metadata['base']['encryptedFiles']
     encrypted_files = (
@@ -233,7 +232,7 @@ def decrypt(ocean, account, did):
         else encrypted_files[0]
     )
 
-    secret_store = ocean.assets._get_secret_store(account)
+    secret_store = ocean.assets._get_secret_store(ocean.account)
     if ddo.get_service('Authorization'):
         secret_store_service = ddo.get_service(
             service_type=ServiceTypes.AUTHORIZATION)
@@ -254,7 +253,7 @@ def decrypt(ocean, account, did):
     return decrypted_content_urls
 
 
-def list_assets(ocean, account, address):
+def list_assets(address=None, ocean=None):
     did_registry = DIDRegistry.get_instance()
     did_registry_ids = did_registry.contract_concise.getDIDRegisterIds()
     did_list = [
@@ -263,7 +262,7 @@ def list_assets(ocean, account, address):
     ]
     if address:
         if address == 'me':
-            address = account.address
+            address = ocean.account.address
         result = []
         for did in did_list:
             try:
