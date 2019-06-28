@@ -1,12 +1,12 @@
 {
   "base": {
-    "name": "cya",
+    "name": "cyads",
     "dateCreated": "2012-02-01T10:55:11Z",
     "author": "Luigi",
     "license": "CC0: Public Domain",
-    "price": 0,
+    "price": "0",
     "files": [{
-        "url": "README.md"
+        "url": {"path": "README.md"}
       }
     ],
     "type": "dataset"

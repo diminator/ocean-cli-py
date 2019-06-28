@@ -9,18 +9,22 @@ from squid_py.keeper import Keeper
 
 
 def handle_access(event, agreement_id, ocean=None):
+    time.sleep(3)
     access_consumer = event['args'].get('_accessConsumer', None)
     access_provider = event['args'].get('_accessProvider', None)
     if access_provider == ocean.account.address:
         did = id_to_did(ocean.agreements.get(agreement_id).did)
         ocean_conditions = OceanConditions(Keeper.get_instance())
-        ocean_conditions.grant_access(agreement_id,
-                                      did,
-                                      access_consumer,
-                                      ocean.account)
+        print(
+            f'Access: {agreement_id} for {access_consumer}',
+            ocean_conditions.grant_access(agreement_id,
+                                          did,
+                                          access_consumer,
+                                          ocean.account))
 
 
-def listen_lock_reward(ocean=None):
+def listen_lock_reward(callback_agreement_created=handle_access,
+                       ocean=None):
     template = ocean.keeper.escrow_access_secretstore_template.get_instance()
     lock_reward = ocean.keeper.lock_reward_condition.get_instance()
 
@@ -40,15 +44,14 @@ def listen_lock_reward(ocean=None):
                           '\n', ocean.agreements.status(agreement_id))
 
                 if event['event'] == 'AgreementCreated':
-                        time.sleep(3)
-                        print(
-                            f'Access: {agreement_id}',
-                            handle_access(event, agreement_id, ocean=ocean)
-                        )
+                    callback_agreement_created(
+                        event,
+                        agreement_id,
+                        ocean=ocean)
                 elif event['event'] == 'Fulfilled':
                     print(
                         f'Release: {agreement_id}',
-                        release_reward(ocean, ocean.account, agreement_id)
+                        release_reward(agreement_id, ocean=ocean)
                     )
                 print(ocean.agreements.status(agreement_id))
         time.sleep(0.1)

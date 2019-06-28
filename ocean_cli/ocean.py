@@ -16,7 +16,8 @@ from squid_py.ocean.ocean import Ocean
 
 
 def get_ocean(config_file):
-    ocn = Ocean(Config(filename=config_file))
+    ConfigProvider.set_config(Config(filename=config_file))
+    ocn = Ocean()
     ocn.account = get_default_account(ConfigProvider.get_config())
     ocn.balance = partial(ocn.accounts.balance, ocn.account)
     from ocean_cli.api.assets import (
@@ -35,6 +36,10 @@ def get_ocean(config_file):
     ocn.assets.list = partial(list_assets, ocean=ocn)
     ocn.publish = partial(publish, ocean=ocn)
     ocn.search = partial(search, ocean=ocn)
+    from ocean_cli.api.conditions import (
+        check_permissions
+    )
+    ocn.check_permissions = partial(check_permissions, ocean=ocn)
     return ocn
 
 
@@ -532,8 +537,7 @@ def conditions_access(ctx, agreement_id, consumer):
 def conditions_release_reward(ctx, agreement_id):
     from .api.conditions import release_reward
     ocean = ctx.obj['ocean']
-    response = release_reward(ocean, ocean.account,
-                              agreement_id)
+    response = release_reward(agreement_id, ocean=ocean)
     echo({
         "response": response
     })
@@ -544,9 +548,7 @@ def conditions_release_reward(ctx, agreement_id):
 @click.pass_context
 def conditions_check_permissions(ctx, did):
     from .api.conditions import check_permissions
-    ocean = ctx.obj['ocean']
-    response = check_permissions(ocean, ocean.account,
-                                 did)
+    response = check_permissions(did, ocean=ctx.obj['ocean'])
     echo({
         "response": response
     })

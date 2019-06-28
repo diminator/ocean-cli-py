@@ -96,24 +96,36 @@ def prepare(df):
     return df
 
 
-def generate_map(latitude, longitude, zoom):
+def generate_map(latitude=39.7,
+                 longitude=3,
+                 zoom=8,
+                 did=None,
+                 emailAddress=None, *args, **kwargs):
     location_data = load()
 
     location_data = location_data[location_data.accuracy < 1000]
     location_data = prepare(location_data)
 
-    m = folium.Map([latitude, longitude], zoom_start=zoom)
+    m = folium.Map([float(latitude), float(longitude)], zoom_start=int(zoom))
     geo_matrix = location_data[['latitude', 'longitude']].values
 
     m.add_child(plugins.HeatMap(geo_matrix, radius=15))
     m.add_child(folium.LatLngPopup())
-    fn = 'index.html'
+    mime_html = 'text/html'
+
+    fn = os.getcwd() + (f'/proxy-{did}.html' or '/did/index.html')
     m.save(fn)
+    if emailAddress:
+        from .gdrive import upload, authorize
+        fileId = upload(fn, mime_html)
+        print(fileId, emailAddress)
+        authorize(emailAddress=emailAddress, fileId=fileId)
+
     content = get_file(fn)
-    return Response(content, mimetype="text/html")
+    return Response(content, mimetype=mime_html)
 
 
-def generate_animation(epochs=10):
+def generate_animation(epochs=10, *args, **kwargs):
     location_data = load()
 
     location_data = location_data[location_data.accuracy < 1000]
@@ -122,7 +134,7 @@ def generate_animation(epochs=10):
     m = folium.Map([location_data.latitude.median(),
                     location_data.longitude.median()],
                    zoom_start=9)
-    heat_df = np.array_split(location_data, epochs)
+    heat_df = np.array_split(location_data, int(epochs))
     # List comprehension to make out list of lists
     heat_data = [
         [[row['latitude'], row['longitude']] for index, row in _df.iterrows()]
@@ -130,7 +142,7 @@ def generate_animation(epochs=10):
 
     plugins.HeatMapWithTime(heat_data, auto_play=True, max_opacity=0.8).add_to(m)
     m.add_child(folium.LatLngPopup())
-    fn = 'index.html'
+    fn = os.getcwd() + '/index.html'
     m.save(fn)
     content = get_file(fn)
     return Response(content, mimetype="text/html")

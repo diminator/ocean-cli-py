@@ -32,36 +32,25 @@ def access(ocn, account, agreement_id, consumer):
                                          consumer, account)
 
 
-def check_permissions(ocn, account, did, address=None):
-    address = address or account.address
-    access_ = ocn.keeper.access_secret_store_condition.get_instance()
+def check_permissions(did, address=None, ocean=None):
+    address = address or ocean.account.address
+    access_ = ocean.keeper.access_secret_store_condition.get_instance()
     return access_.check_permissions(did_to_id_bytes(did), address)
 
 
-def release_reward(ocn, account, agreement_id):
+def release_reward(agreement_id, ocean=None):
     if agreement_id == 'all':
         response = False
-        for _agreement_id in list_agreements(ocn, account, account.address):
+        for _agreement_id in list_agreements(ocean.account.address, ocean=ocean):
             try:
-                response = release_reward(ocn, account, _agreement_id)
+                response = release_reward(_agreement_id, ocean=ocean)
             except Exception as e:
                 print(e)
         return response
-    amount = int(get_agreement_from_id(ocn, agreement_id).get_price())
+    amount = int(get_agreement_from_id(ocean, agreement_id).get_price())
     ocean_conditions = OceanConditions(Keeper.get_instance())
     return ocean_conditions.release_reward(
         agreement_id,
         amount,
-        account
+        ocean.account
     )
-
-
-def access_release(ocn, account, agreement_id, consumer):
-    time.sleep(4)
-    print(
-        f"Access:{agreement_id}-{consumer}",
-        access(ocn, account, agreement_id, consumer))
-    time.sleep(2)
-    print(
-        f"Release:{agreement_id}",
-        release_reward(ocn, account, agreement_id))

@@ -19,12 +19,13 @@ from ocean_cli.api.agreements import create_agreement
 def make_metadata(name, author, files, price,
                   license='CC0: Public Domain',
                   type='dataset'):
+    price = str(price)
     if isinstance(files, str):
         files = [{"url": files}]
     return {
       "base": {
         "name": name,
-        "dateCreated": str(datetime.datetime.now()),
+        "dateCreated": datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
         "author": author,
         "license": license,
         "price": price,
@@ -44,9 +45,11 @@ def create(metadata,
     """
     Publish an asset from metadata
     """
+    price = str(price)
     if not isinstance(metadata, dict):
         # Assume it is a path to metadata json file
         metadata = json.load(open(metadata, 'r'))
+        metadata['base']['price'] = price
     service_descriptors = [
         ServiceDescriptor.access_service_descriptor(
             price,
@@ -56,6 +59,7 @@ def create(metadata,
             ocean.keeper.escrow_access_secretstore_template.address
         )
     ]
+
     ddo = ocean.assets.create(
         metadata,
         ocean.account,
@@ -86,7 +90,7 @@ def authorize(did, ocean=None, wait=5):
     from ocean_cli.api.conditions import check_permissions
 
     # order
-    if not check_permissions(ocean, ocean.account, did):
+    if not check_permissions(did, ocean=ocean):
         agreement_id = ocean.order(did)
     else:
         # TODO: get agreement id for did & consumer
@@ -114,14 +118,11 @@ def consume(did,
             secret,
             method='get',
             ocean=None):
-    token = secret.get('token', None)
     url = secret.get('url', None)
-    if method == 'brizo':
-        return consume_brizo(ocean, ocean.account, did, agreement_id, token)
-    elif method == 'get':
+    if method == 'get':
         return consume_get(url)
     elif method == 'api':
-        return consume_api(ocean.account, did, service_endpoint, url, token)
+        return consume_api(ocean, did, service_endpoint, url)
 
 
 def consume_agreement(ocean, agreement_id, method):
@@ -135,10 +136,22 @@ def consume_get(url):
     return requests.get(f'{url}')
 
 
-def consume_api(account, did, service_endpoint, url, token):
+def consume_api(ocean, did, service_endpoint, url):
+    from urllib import parse
+    path = url.get('path', 'index.html')
+    qs = url.get('qs', '')
+    qs_dict = parse.parse_qs(qs)
+    signed_token = ocean.keeper.sign_hash(qs_dict['token'][0], ocean.account) \
+        if qs else None
+    qs_token = "&".join([f'{k}={v[0]}' for k, v in qs.items()]) if \
+        isinstance(qs, dict) else qs
     return requests.get(
-        f'{service_endpoint}/{url}'
-        f'?token={token}&did={did}&address={account.address}')
+        f'{service_endpoint}/{path}'
+        f'?signedToken={signed_token}&'
+        f'did={did}&'
+        f'address={ocean.account.address}&'
+        f'{qs_token}'
+    )
 
 
 def consume_brizo(ocean, account, did, agreement_id, token):
@@ -252,12 +265,9 @@ def decrypt(did, ocean=None):
 
 
 def list_assets(address=None, ocean=None):
-    did_registry = DIDRegistry.get_instance()
-    did_registry_ids = did_registry.contract_concise.getDIDRegisterIds()
-    did_list = [
-         id_to_did(Web3Provider.get_web3().toHex(did)[2:])
-         for did in did_registry_ids
-    ]
+    did_list = [id_to_did(Web3Provider.get_web3().toHex(_id)[2:]) for _id in
+                DIDRegistry.get_instance().contract_concise.getDIDRegisterIds()]
+
     if address:
         if address == 'me':
             address = ocean.account.address

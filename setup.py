@@ -17,13 +17,16 @@ install_requirements = [
     'jupyter==1.0.0',
     'autopep8==1.4.4',  # nbextensions
     'pandas==0.24.2',
-    'geopandas==0.5.0',
     'folium==0.9.1',
     'Flask==1.0.3',
     'docker==4.0.2',
     'Click==7.0',
     'jupytext==1.1.6',
-    'squid-py==0.6.4',
+    'google-auth==1.6.3',
+    'google-auth-httplib2==0.0.3',
+    'google-auth-oauthlib==0.4.0',
+    'google-api-python-client==1.7.9',
+    'squid-py==0.6.13',
     # web3 requires eth-abi, requests, and more,
     # so those will be installed too.
     # See https://github.com/ethereum/web3.py/blob/master/setup.py
@@ -88,7 +91,7 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/oceanprotocol/ocean-cli-py',
-    version='0.6.4',
+    version='0.0.1',
     zip_safe=False,
     entry_points='''
         [console_scripts]
