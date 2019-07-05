@@ -10,9 +10,9 @@ import {
     verbose
 } from './config'
 
-export async function provideOcean(web3provider) {
+export async function provideOcean(web3Provider) {
     const config = {
-        web3provider,
+        web3Provider,
         nodeUri,
         aquariusUri,
         brizoUri,
@@ -22,7 +22,6 @@ export async function provideOcean(web3provider) {
     }
 
     const ocean = await Ocean.getInstance(config)
-
     return { ocean }
 }
 

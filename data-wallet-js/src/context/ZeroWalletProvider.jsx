@@ -1,6 +1,6 @@
 import Web3 from 'web3'
 import { nodeUri } from '../config'
-import bip39 from 'bip39'
+import { generateMnemonic } from 'bip39'
 
 
 const HDWalletProvider = require('truffle-hdwallet-provider')
@@ -28,7 +28,7 @@ export class ZeroWalletProvider {
     }
 
     async createLogin() {
-        const mnemonic = bip39.generateMnemonic()
+        const mnemonic = generateMnemonic()
         localStorage.setItem('seedphrase', mnemonic)
         const provider = new HDWalletProvider(mnemonic, nodeUri, 0, 1);
         this.web3 = new Web3(provider)

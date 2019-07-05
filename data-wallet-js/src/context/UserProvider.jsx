@@ -86,115 +86,60 @@ export default class UserProvider extends PureComponent {
         const metamaskProvider = new MetamaskProvider()
         await metamaskProvider.startLogin()
         localStorage.setItem('logType', 'Metamask')
-        const web3 = metamaskProvider.getProvider()
-        this.setState(
-            {
-                isLogged: true,
-                web3
-            },
-            () => {
-                this.loadOcean()
-            }
-        )
+        await this.loadOcean(metamaskProvider)
     }
 
     loginZeroWallet = async () => {
         const zerowalletProvider = new ZeroWalletProvider()
         await zerowalletProvider.createLogin()
         localStorage.setItem('logType', 'ZeroWallet')
-        const web3 = zerowalletProvider.getProvider()
+        await this.loadOcean(zerowalletProvider)
+    }
+
+    loadOcean = async (provider) => {
+        const { ocean } = await provideOcean(provider.getProvider())
+        console.log(await ocean.accounts.list())
+        this.setState({ocean})
+        const web3 = provider.getProvider()
         this.setState(
-            {
-                isLogged: true,
-                web3
-            },
-            () => {
-                this.loadOcean()
-            }
-        )
+        {
+            isLogged: true,
+            isWeb3: true,
+            web3
+        })
+        this.setState({isLoading: true})
+        this.initNetworkPoll()
+        this.initAccountsPoll()
+        await this.fetchNetwork()
+        await this.fetchAccounts()
+        this.setState({isLoading: false})
     }
 
     bootstrap = async () => {
-        try {
-            //
-            // Start with Web3 detection only
-            //
-            this.setState({ message: 'Setting up Web3...' })
-            let web3 = await this.getWeb3()
-
-            web3
-                ? this.setState({ isWeb3: true })
-                : this.setState({ isWeb3: false })
-
-            // Modern & legacy dapp browsers
-            if (web3 && this.state.isWeb3) {
-                //
-                // Detecting network with window.web3
-                //
-                let isOceanNetwork
-
-                await window.web3.eth.net.getId((err, netId) => {
-                    if (err) return
-
-                    const isPacific = netId === 0xcea11
-                    const isNile = netId === 8995
-                    const isDuero = netId === 2199
-                    const isSpree = netId === 8996
-
-                    isOceanNetwork = isPacific || isNile || isDuero || isSpree
-
-                    const network = isPacific
-                        ? 'Pacific'
-                        : isNile
-                        ? 'Nile'
-                        : isDuero
-                        ? 'Duero'
-                        : isSpree
-                        ? 'Spree'
-                        : netId.toString()
-
-                    if (
-                        isOceanNetwork !== this.state.isOceanNetwork ||
-                        network !== this.state.network
-                    ) {
-                        this.setState({
-                            isOceanNetwork,
-                            network,
-                            message: `Network ${network} detected...`
-                        })
-                    }
-                })
-
-                if (!isOceanNetwork) {
-                    web3 = this.state.web3 // eslint-disable-line
+        const logType = localStorage.getItem('logType')
+        switch (logType) {
+            case 'Metamask':
+                const metamaskProvider = new MetamaskProvider()
+                if (
+                    (await metamaskProvider.isAvaliable()) &&
+                    (await metamaskProvider.isLogged())
+                ) {
+                    await this.loadOcean(metamaskProvider)
+                } else {
+                    console.log('metamaske not available or logged in')
                 }
-
-                //
-                // Provide the Ocean
-                //
-                this.setState({ message: 'Connecting to Ocean...' })
-
-                const { ocean } = await provideOcean(web3)
-                this.setState({ ocean, message: 'Getting accounts...' })
-
-                // Get accounts
-                await this.fetchAccounts()
-
-                this.setState({ isLoading: false, message: '' })
-            }
-            // Non-dapp browsers
-            else {
-                this.setState({ message: 'Connecting to Ocean...' })
-                const { ocean } = await provideOcean(this.state.web3)
-                this.setState({ ocean, isLoading: false })
-
-                this.fetchNetwork()
-            }
-        } catch (e) {
-            // error in bootstrap process
-            // show error connecting to ocean
-            Logger.error('web3 error', e.message)
-            this.setState({ isLoading: false })
+                break
+            case 'ZeroWallet':
+                const zerowalletProvider = new ZeroWalletProvider()
+                if (await zerowalletProvider.isLogged()) {
+                    await zerowalletProvider.restoreStoredLogin()
+                    await this.loadOcean(zerowalletProvider)
+                } else {
+                    console.log('zerowallet not available or logged in')
+                }
+                break
+            default:
+                break
         }
     }
 
