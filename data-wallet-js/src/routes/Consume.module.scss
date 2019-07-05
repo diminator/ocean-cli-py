@@ -1,0 +1,48 @@
+@import '../styles/variables';
+@import "../components/atoms/Input.module";
+
+.input {
+    margin-bottom: 1em;
+    font-family: "Fira Code", "Fira Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+.action {
+    text-align: center;
+    margin-top: $spacer * 2;
+
+    p {
+        margin-top: $spacer;
+        color: $brand-grey-light;
+    }
+}
+
+.success {
+    color: $green;
+
+    p {
+        margin-top: $spacer / 2;
+    }
+
+    strong {
+        display: block;
+    }
+
+    code {
+        overflow-wrap: break-word;
+        display: inline;
+    }
+
+    a:hover,
+    a:focus {
+        code {
+            color: inherit;
+        }
+    }
+}
+
+.error {
+    &,
+    p {
+        color: $red;
+    }
+}

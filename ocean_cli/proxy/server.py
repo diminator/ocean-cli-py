@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from urllib import parse
 
 from ocean_cli.ocean import get_ocean
@@ -10,51 +11,32 @@ from ocean_cli.proxy.services import (
 ocean = get_ocean('config.ini')
 
 app = Flask(__name__)
+CORS(app)
 
 
-def authorize(path,
-              did=None,
-              address=None,
-              token=None,
-              signed_token=None, **kwargs):
-    try:
-        if did and address and not ocean.check_permissions(did, address):
-            print('error check_permissions')
-            return False
+def authorize(did=None,
+              consumerAddress=None,
+              agreementId=None,
+              agreementIdSignature=None, **kwargs):
 
-        if token:
-            secret = ocean.decrypt(did)[0]
-            if not isinstance(secret, dict):
-                print('error decrypt')
-                return False
+    if not (did and consumerAddress) \
+            or not ocean.check_permissions(did, consumerAddress)\
+            or not (agreementId and agreementIdSignature)\
+            or not (ocean.keeper.ec_recover(agreementId, agreementIdSignature)
+                    == consumerAddress.lower()):
+        raise ValueError('error check_permissions')
 
-            if secret['url']['path'] != path:
-                print('wrong path')
-                return False
+    secret = ocean.decrypt(did)[0]
+    if not isinstance(secret, dict):
+        raise ValueError('could not decrypt')
 
-            qs = parse.parse_qs(secret['url']['qs'])
-            # TODO: deep check on other query params as well
-            if qs['token'][0] != token:
-                print('wrong token')
-                return False
-
-        # TODO: deep check on other query params as well
-        if signed_token and \
-                (ocean.keeper.ec_recover(token, signed_token) != address.lower()):
-            print('error sign')
-            return False
-    except KeyError as e:
-        print('error', e)
-        return False
-    except ValueError as e:
-        print('error', e)
-        return False
-
-    print(f'Access granted for {did} to {address} with {token}')
-    return True
+    print(f'Access granted for {did} to {consumerAddress} with {agreementId}')
+    return \
+        secret['url']['path'], \
+        {k: v[0] for k, v in parse.parse_qs(secret['url']['qs']).items()}
 
 
-def handle(path):
+def handle(path, qs):
     if path == 'docker/hello':
         import docker
         client = docker.from_env()
@@ -62,16 +44,16 @@ def handle(path):
         return jsonify(response)
 
     if path == 'locations/map':
-        return location_heatmap.generate_map(**request.args)
+        return location_heatmap.generate_map(**qs)
 
     if path == 'locations/animation':
-        return location_heatmap.generate_animation(**request.args)
+        return location_heatmap.generate_animation(**qs)
 
     if path == 'gdrive/list':
-        return jsonify(gdrive.list_files(**request.args))
+        return jsonify(gdrive.list_files(**qs))
 
     if path == 'gdrive/auth':
-        return jsonify(gdrive.authorize(**request.args))
+        return jsonify(gdrive.authorize(**qs))
 
     return 'Not found', 404
 
@@ -79,10 +61,11 @@ def handle(path):
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def proxy(path):
-    if not authorize(path, **request.args):
-        return f'No Access!\nREQ:{str(request.args)}', 402
-
-    return handle(path)
+    try:
+        return handle(*authorize(**request.args))
+    except (KeyError, ValueError) as e:
+        print(e)
+        return f'No Access!\nREQUEST:{str(request.args)}', 402
 
 
 if __name__ == '__main__':

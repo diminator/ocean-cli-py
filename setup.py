@@ -19,6 +19,7 @@ install_requirements = [
     'pandas==0.24.2',
     'folium==0.9.1',
     'Flask==1.0.3',
+    'Flask-Cors==3.0.8',
     'docker==4.0.2',
     'Click==7.0',
     'jupytext==1.1.6',

@@ -1,0 +1,14 @@
+[
+  {
+    "title": "Consume",
+    "link": "/"
+  },
+  {
+    "title": "Faucet",
+    "link": "/faucet"
+  },
+  {
+    "title": "About",
+    "link": "/about"
+  }
+]
