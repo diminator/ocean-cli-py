@@ -7,7 +7,8 @@ import Web3message from '../components/organisms/Web3message'
 import styles from './Faucet.module.scss'
 import Content from '../components/atoms/Content'
 
-export default class Faucet extends PureComponent{
+
+class Web3Action extends PureComponent {
     static contextType = User
 
     state = {
@@ -60,6 +61,8 @@ export default class Faucet extends PureComponent{
         const submarineLink = `https://submarine${
             network === 'Duero'
                 ? '.duero'
+                : network === 'Nile'
+                ? '.nile'
                 : network === 'Pacific'
                 ? '.pacific'
                 : ''
@@ -71,7 +74,7 @@ export default class Faucet extends PureComponent{
                 <p>
                     <strong>Your Transaction Hash</strong>
 
-                    <a href={submarineLink}>
+                    <a href={submarineLink} target="_blank">
                         <code>{trxHash}</code>
                     </a>
                 </p>
@@ -85,7 +88,9 @@ export default class Faucet extends PureComponent{
             <Button onClick={() => this.reset()}>Try again</Button>
         </div>
     )
+}
 
+class EtherFaucet extends Web3Action {
     Action = () => (
         <>
             <Button
@@ -108,6 +113,63 @@ export default class Faucet extends PureComponent{
         const { isLoading, error, success } = this.state
 
         return (
+            <div className={styles.action}>
+                {isLoading ? (
+                    <Spinner message="Getting Ether..." />
+                ) : error ? (
+                    <this.Error />
+                ) : success ? (
+                    <this.Success />
+                ) : (
+                    isWeb3 && <this.Action />
+                )}
+            </div>
+        )
+    }
+}
+
+
+class OceanFaucet extends Web3Action {
+    Action = () => (
+        <>
+            <Button
+                primary
+                onClick={() => this.getTokens(this.context.requestOcean)}
+                disabled={
+                    !this.context.isLogged || !this.context.isOceanNetwork
+                }
+            >
+                Request OCEAN
+            </Button>
+            <p>
+                You can request as many OCEAN as you want.
+            </p>
+        </>
+    )
+
+    render() {
+        const { isWeb3 } = this.context
+        const { isLoading, error, success } = this.state
+
+        return (
+            <div className={styles.action}>
+                {isLoading ? (
+                    <Spinner message="Getting OCEAN..." />
+                ) : error ? (
+                    <this.Error />
+                ) : success ? (
+                    <this.Success />
+                ) : (
+                    isWeb3 && <this.Action />
+                )}
+            </div>
+        )
+    }
+}
+
+export default class Faucet extends PureComponent{
+    render() {
+        return (
             <Route
                 title="Faucet"
                 description="Shower yourself with some Ether for Ocean's Pacific network."
@@ -115,21 +177,11 @@ export default class Faucet extends PureComponent{
                 <Content>
                     <Web3message />
 
-                    <div className={styles.action}>
-                        {isLoading ? (
-                            <Spinner message="Getting Ether..." />
-                        ) : error ? (
-                            <this.Error />
-                        ) : success ? (
-                            <this.Success />
-                        ) : (
-                            isWeb3 && <this.Action />
-                        )}
-                    </div>
+                    <EtherFaucet />
+                    <OceanFaucet />
+
                 </Content>
             </Route>
         )
     }
 }
-
-Faucet.contextType = User

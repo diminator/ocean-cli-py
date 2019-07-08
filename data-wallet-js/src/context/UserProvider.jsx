@@ -2,7 +2,7 @@ import React, { PureComponent } from 'react'
 import Web3 from 'web3'
 import { Logger } from '@oceanprotocol/squid'
 import { User } from '.'
-import { provideOcean, requestFromFaucet } from '../ocean'
+import { provideOcean, requestFromFaucet, requestOcean } from '../ocean'
 import { MetamaskProvider } from './MetamaskProvider'
 import { ZeroWalletProvider } from './ZeroWalletProvider'
 import { nodeUri } from '../config'
@@ -34,6 +34,7 @@ export default class UserProvider extends PureComponent {
         account: '',
         ocean: {},
         requestFromFaucet: () => requestFromFaucet(''),
+        requestOcean: () => requestOcean(this.state.ocean),
         unlockAccounts: () => this.unlockAccounts(),
         loginMetamask: () => this.loginMetamask(),
         loginZeroWallet: () => this.loginZeroWallet(),
@@ -62,23 +63,6 @@ export default class UserProvider extends PureComponent {
     initNetworkPoll() {
         if (!this.networkInterval) {
             this.networkInterval = setInterval(this.fetchNetwork, POLL_NETWORK)
-        }
-    }
-
-    getWeb3 = () => {
-        // Modern dapp browsers
-        if (window.ethereum) {
-            window.web3 = new Web3(window.ethereum)
-            return window.web3
-        }
-        // Legacy dapp browsers
-        else if (window.web3) {
-            window.web3 = new Web3(window.web3.currentProvider)
-            return window.web3
-        }
-        // Non-dapp browsers
-        else {
-            return null
         }
     }
 
@@ -139,7 +123,7 @@ export default class UserProvider extends PureComponent {
                 }
                 break
             default:
-                break
+                this.setState({isLoading: false})
         }
     }
 
@@ -170,9 +154,8 @@ export default class UserProvider extends PureComponent {
                         isLogged: true,
                         requestFromFaucet: () => requestFromFaucet(account)
                     })
-
-                    await this.fetchBalance(accounts[0])
                 }
+                await this.fetchBalance(accounts[0])
             } else {
                 !isLogged && this.setState({ isLogged: false, account: '' })
             }

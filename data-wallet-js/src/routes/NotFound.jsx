@@ -1,9 +1,13 @@
 import React, { Component } from 'react'
+import Route from "../components/templates/Route";
+import Content from "../components/atoms/Content";
 
 class NotFound extends Component {
     render() {
         return (
-            <div>Not Found</div>
+            <Route title="404 - Not Found">
+                <Content>Not Found</Content>
+            </Route>
         )
     }
 }

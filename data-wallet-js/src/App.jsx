@@ -7,12 +7,12 @@ import { User } from "./context";
 import Routes from "./Routes"
 import './styles/global.scss'
 import styles from './App.module.scss'
+import Login from "./routes/Login";
 
 export default class App extends Component {
     static contextType = User
 
     render() {
-        console.log(this.context.message)
         return (
             <div className="App">
                 <Router>
@@ -20,12 +20,15 @@ export default class App extends Component {
                     <Header />
 
                         <main className={styles.main}>
-                            { this.context.isLoading ? (
-                                <div className={styles.loader}>
-                                    <Spinner message="Loading" />
-                                </div>
-                            ) :
-                                (<Routes />)
+                            {   this.context.isLoading ? (
+                                    <div className={styles.loader}>
+                                        <Spinner message="Loading" />
+                                    </div>
+                                ) : !this.context.isWeb3 ? (
+                                    <Login />
+                                ) : (
+                                    <Routes />
+                                )
                             }
                         </main>
 

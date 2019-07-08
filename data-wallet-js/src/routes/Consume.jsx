@@ -24,10 +24,8 @@ export default class Consume extends PureComponent {
 
     componentDidMount = async () => {
         const did = queryString.parse(this.props.location.search.replace(/^\?/i, '')).did
-        const ddo = await this.fetchDDO(did)
-        if (ddo) {
-            this.setState({did, ddo})
-        }
+        this.setState({didValue: did})
+        await this.setDDO(did)
     }
 
     hasPermission = async (did) => {
@@ -43,7 +41,7 @@ export default class Consume extends PureComponent {
         try {
             const consumer = new Account(account)
             const ddo = await ocean.assets.resolve(did)
-            console.log(ddo)
+
             const templateName = ddo.findServiceByType("Access")
                 .serviceAgreementTemplate.contractName
             const template = ocean.keeper.getTemplateByName(templateName)
@@ -208,10 +206,13 @@ export default class Consume extends PureComponent {
         </>
     )
 
-    fetchDDO = async (did) => {
+    setDDO = async (did) => {
         const { ocean } = this.context
         try {
             const ddo = await ocean.assets.resolve(did)
+            if (ddo) {
+                this.setState({did, ddo})
+            }
             return ddo
         } catch (e) {
             return null
@@ -219,10 +220,9 @@ export default class Consume extends PureComponent {
     }
 
     handleChange = async (event) => {
-        const did = event.target.value
-        this.setState({did});
-        const ddo = await this.fetchDDO(did)
-        this.setState({ddo})
+        const didValue = event.target.value
+        this.setState({didValue});
+        await this.setDDO(didValue)
         this.reset()
     }
 
@@ -239,7 +239,7 @@ export default class Consume extends PureComponent {
                     <div className={styles.action}>
                         <input type="text"
                                className={styles.input}
-                               value={this.state.did}
+                               value={this.state.didValue}
                                onChange={e => this.handleChange(e)} />
 
                         {isLoading ? (
@@ -254,9 +254,11 @@ export default class Consume extends PureComponent {
                     </div>
                 </Content>
                 <Content>
-                    <pre>
-                        { `${JSON.stringify(this.state.ddo, undefined, 2)}` }
-                    </pre>
+                    <div className={styles.ddoBox}>
+                        <pre>
+                            { `${JSON.stringify(this.state.ddo, undefined, 2)}` }
+                        </pre>
+                    </div>
                 </Content>
             </Route>
         )
