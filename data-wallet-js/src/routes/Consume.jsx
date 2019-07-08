@@ -16,6 +16,7 @@ export default class Consume extends PureComponent {
     state = {
         did: null,
         ddo: {},
+        message: undefined,
         isLoading: false,
         success: undefined,
         error: undefined,
@@ -34,11 +35,9 @@ export default class Consume extends PureComponent {
             .checkPermissions(account, did, account)
     }
 
-    authorize = async (did) => {
-        this.setState({ isLoading: true })
-        const { ocean, account } = this.context
-
-        try {
+    authorize = (did) => {
+        return new utils.SubscribablePromise(async (observer) => {
+            const { ocean, account } = this.context
             const consumer = new Account(account)
             const ddo = await ocean.assets.resolve(did)
 
@@ -53,29 +52,31 @@ export default class Consume extends PureComponent {
                 await template.getAgreementCreatedEvent(agreementId).once()
 
                 console.log("Agreement initialized")
+                observer.next(1)
 
-                const {metadata} = ddo.findServiceByType("Metadata")
-
+                const { metadata } = ddo.findServiceByType("Metadata")
                 console.log("Locking payment")
 
-                const paid = await ocean.agreements.conditions
-                    .lockReward(
-                        agreementId,
-                        metadata.base.price,
-                        consumer
-                    )
+                try {
+                    const paid = await ocean.agreements.conditions
+                        .lockReward(
+                            agreementId,
+                            metadata.base.price,
+                            consumer
+                        )
+                    console.log("Payment was OK", paid)
+                    observer.next(2)
 
-                if (paid) {
-                    console.log("Payment was OK")
-                } else {
+                    resolve()
+                } catch (e) {
                     console.error("Payment was KO")
                     console.error("Agreement ID: ", agreementId)
                     console.error("DID: ", ddo.id)
                     reject("Error on payment")
                 }
-                resolve()
             })
 
+            observer.next(0)
             await ocean.agreements.create(
                 did,
                 agreementId,
@@ -86,16 +87,7 @@ export default class Consume extends PureComponent {
             )
 
             await paymentFlow
-
-            this.setState({
-                isLoading: false,
-            })
-
-        } catch (error) {
-            this.setState({
-                isLoading: false,
-                error: error.message })
-        }
+        })
     }
 
     prepareUrl = async (did) => {
@@ -117,13 +109,32 @@ export default class Consume extends PureComponent {
     consume = async (did) => {
         this.setState({ isLoading: true })
         const { ocean } = this.context
+        const messages = [
+            'Initializing Agreement',
+            'Locking Payment',
+            'Payment Locked',
+        ]
         if (!(await this.hasPermission(did))){
             console.log('No permission, authorizing')
-            await this.authorize(did)
+            try {
+                await this.authorize(did)
+                    .next(step => this.setState({
+                        message: messages[step]
+                    }))
+            } catch (e) {
+                this.setState({
+                error: `Could authorize. Message: ${e}`,
+                    isLoading: false
+                })
+                return false
+            }
         }
         console.log('Preparing URL')
         const consumeUrl = await this.prepareUrl(did)
         try {
+            this.setState({
+                message: "Consuming asset"
+            })
             const response = await ocean.utils.fetch
                 .get(consumeUrl, {
                     method: "GET",
@@ -174,13 +185,15 @@ export default class Consume extends PureComponent {
         return (
             <div className={styles.success}>
                 <strong>{this.state.success}</strong>
-                <p>
-                    <strong>Your Transaction Hash</strong>
+                {this.state.trxHash && (
+                    <p>
+                        <strong>Your Transaction Hash</strong>
 
-                    <a href={submarineLink}>
-                        <code>{trxHash}</code>
-                    </a>
-                </p>
+                        <a href={submarineLink}>
+                            <code>{trxHash}</code>
+                        </a>
+                    </p>
+                )}
             </div>
         )
     }
@@ -192,19 +205,29 @@ export default class Consume extends PureComponent {
         </div>
     )
 
-    Action = () => (
-        <>
-            <Button
-                primary
-                onClick={() => this.consume(this.state.did)}
-                disabled={
-                    !this.context.isLogged || !this.context.isOceanNetwork
-                }
-            >
-                Consume DID
-            </Button>
-        </>
-    )
+    Action = () => {
+        const { ddo } = this.state
+        let price = null
+        if (ddo && ddo.service) {
+            price = (parseInt(ddo.service[0].metadata.base.price)/1e18)
+                .toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                })
+        }
+        return (
+            <>
+                <Button
+                    primary
+                    onClick={() => this.consume(this.state.did)}
+                    disabled={
+                        !this.context.isLogged || !this.context.isOceanNetwork
+                    }
+                >
+                    Consume DID {price && `(${price} OCEAN)`}
+                </Button>
+            </>
+        )
+    }
 
     setDDO = async (did) => {
         const { ocean } = this.context
@@ -243,7 +266,7 @@ export default class Consume extends PureComponent {
                                onChange={e => this.handleChange(e)} />
 
                         {isLoading ? (
-                            <Spinner message="Authorizing ..." />
+                            <Spinner message={this.state.message} />
                         ) : error ? (
                             <this.Error />
                         ) : success ? (

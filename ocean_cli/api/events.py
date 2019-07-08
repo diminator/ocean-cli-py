@@ -27,7 +27,6 @@ def listen_lock_reward(callback_agreement_created=handle_access,
                        ocean=None):
     template = ocean.keeper.escrow_access_secretstore_template.get_instance()
     lock_reward = ocean.keeper.lock_reward_condition.get_instance()
-
     filters = [
         template.events.AgreementCreated.createFilter(fromBlock='latest'),
         lock_reward.events.Fulfilled.createFilter(fromBlock='latest'),
@@ -35,23 +34,32 @@ def listen_lock_reward(callback_agreement_created=handle_access,
 
     while True:
         for _filter in filters:
-            for event in _filter.get_new_entries():
-                print(f"\n\n{'*'*30}\n{event['event']}\n{'*'*30}\n\n", event)
-                agreement_id = event['args'].get('_agreementId', None)
-                if agreement_id:
-                    agreement_id = Web3Provider.get_web3().toHex(agreement_id)
-                    print('\n', ocean.agreements.get(agreement_id),
-                          '\n', ocean.agreements.status(agreement_id))
+            try:
+                for event in _filter.get_new_entries():
+                    print(f"\n\n{'*'*30}\n{event['event']}\n{'*'*30}\n\n", event)
+                    agreement_id = event['args'].get('_agreementId', None)
+                    if agreement_id:
+                        agreement_id = Web3Provider.get_web3().toHex(agreement_id)
+                        print('\n', ocean.agreements.get(agreement_id),
+                              '\n', ocean.agreements.status(agreement_id))
 
-                if event['event'] == 'AgreementCreated':
-                    callback_agreement_created(
-                        event,
-                        agreement_id,
-                        ocean=ocean)
-                elif event['event'] == 'Fulfilled':
-                    print(
-                        f'Release: {agreement_id}',
-                        release_reward(agreement_id, ocean=ocean)
-                    )
-                print(ocean.agreements.status(agreement_id))
+                    if event['event'] == 'AgreementCreated':
+                        callback_agreement_created(
+                            event,
+                            agreement_id,
+                            ocean=ocean)
+                    elif event['event'] == 'Fulfilled':
+                        print(
+                            f'Release: {agreement_id}',
+                            release_reward(agreement_id, ocean=ocean)
+                        )
+                    print(ocean.agreements.status(agreement_id))
+            except ValueError as e:
+                print('error', e)
+                filters = [
+                    template.events.AgreementCreated.createFilter(
+                        fromBlock='latest'),
+                    lock_reward.events.Fulfilled.createFilter(
+                        fromBlock='latest'),
+                ]
         time.sleep(0.1)
