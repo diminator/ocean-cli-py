@@ -74,7 +74,7 @@ class Web3Action extends PureComponent {
                 <p>
                     <strong>Your Transaction Hash</strong>
 
-                    <a href={submarineLink} target="_blank">
+                    <a href={submarineLink} target="_blank" rel="noopener noreferrer">
                         <code>{trxHash}</code>
                     </a>
                 </p>

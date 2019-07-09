@@ -1,5 +1,5 @@
 import React, { PureComponent } from 'react'
-import { Account, utils } from '@oceanprotocol/squid'
+import { Account } from '@oceanprotocol/squid'
 import save from "save-file"
 import queryString from "querystring"
 import Button from '../components/atoms/Button'
@@ -35,61 +35,6 @@ export default class Consume extends PureComponent {
             .checkPermissions(account, did, account)
     }
 
-    authorize = (did) => {
-        return new utils.SubscribablePromise(async (observer) => {
-            const { ocean, account } = this.context
-            const consumer = new Account(account)
-            const ddo = await ocean.assets.resolve(did)
-
-            const templateName = ddo.findServiceByType("Access")
-                .serviceAgreementTemplate.contractName
-            const template = ocean.keeper.getTemplateByName(templateName)
-
-            const agreementId = utils.zeroX(utils.generateId())
-
-            const paymentFlow = new Promise(async (resolve, reject) => {
-                console.log("Waiting for agreement", agreementId)
-                await template.getAgreementCreatedEvent(agreementId).once()
-
-                console.log("Agreement initialized")
-                observer.next(1)
-
-                const { metadata } = ddo.findServiceByType("Metadata")
-                console.log("Locking payment")
-
-                try {
-                    const paid = await ocean.agreements.conditions
-                        .lockReward(
-                            agreementId,
-                            metadata.base.price,
-                            consumer
-                        )
-                    console.log("Payment was OK", paid)
-                    observer.next(2)
-
-                    resolve()
-                } catch (e) {
-                    console.error("Payment was KO")
-                    console.error("Agreement ID: ", agreementId)
-                    console.error("DID: ", ddo.id)
-                    reject("Error on payment")
-                }
-            })
-
-            observer.next(0)
-            await ocean.agreements.create(
-                did,
-                agreementId,
-                ddo.findServiceByType('Access').serviceDefinitionId,
-                "",
-                consumer,
-                consumer
-            )
-
-            await paymentFlow
-        })
-    }
-
     prepareUrl = async (did) => {
         const agreementId = 'agreementIdBla'
         const { ocean, account } = this.context
@@ -106,26 +51,33 @@ export default class Consume extends PureComponent {
         return consumeUrl
     }
 
-    consume = async (did) => {
+    consume = async () => {
         this.setState({ isLoading: true })
-        const { ocean } = this.context
+        const { ocean, account } = this.context
+        const { did, ddo } = this.state
         const messages = [
-            'Initializing Agreement',
+            'Creating Agreement',
+            'Agreement Created',
             'Locking Payment',
             'Payment Locked',
         ]
         if (!(await this.hasPermission(did))){
-            console.log('No permission, authorizing')
+            console.log('No permission, ordering')
             try {
-                await this.authorize(did)
+                await ocean.assets
+                    .order(
+                        did,
+                        ddo.findServiceByType('Access').serviceDefinitionId,
+                        new Account(account))
                     .next(step => this.setState({
-                        message: messages[step]
-                    }))
+                            message: messages[step]
+                        }))
+
             } catch (e) {
                 this.setState({
-                error: `Could authorize. Message: ${e}`,
-                    isLoading: false
-                })
+                    error: `Could not order asset. Message: ${e}`,
+                        isLoading: false
+                    })
                 return false
             }
         }
@@ -208,7 +160,9 @@ export default class Consume extends PureComponent {
     Action = () => {
         const { ddo } = this.state
         let price = null
+        let validDDO = false
         if (ddo && ddo.service) {
+            validDDO = true
             price = (parseInt(ddo.service[0].metadata.base.price)/1e18)
                 .toLocaleString(undefined, {
                     minimumFractionDigits: 2,
@@ -218,9 +172,11 @@ export default class Consume extends PureComponent {
             <>
                 <Button
                     primary
-                    onClick={() => this.consume(this.state.did)}
+                    onClick={this.consume}
                     disabled={
-                        !this.context.isLogged || !this.context.isOceanNetwork
+                        !this.context.isLogged
+                        || !this.context.isOceanNetwork
+                        || !validDDO
                     }
                 >
                     Consume DID {price && `(${price} OCEAN)`}

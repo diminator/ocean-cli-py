@@ -1,6 +1,5 @@
 import React, { PureComponent } from 'react'
 import Web3 from 'web3'
-import { Logger } from '@oceanprotocol/squid'
 import { User } from '.'
 import { provideOcean, requestFromFaucet, requestOcean } from '../ocean'
 import { MetamaskProvider } from './MetamaskProvider'
@@ -82,7 +81,7 @@ export default class UserProvider extends PureComponent {
 
     loadOcean = async (provider) => {
         const { ocean } = await provideOcean(provider.getProvider())
-        console.log(await ocean.accounts.list())
+
         this.setState({ocean})
         const web3 = provider.getProvider()
         this.setState(
@@ -110,7 +109,7 @@ export default class UserProvider extends PureComponent {
                 ) {
                     await this.loadOcean(metamaskProvider)
                 } else {
-                    console.log('metamaske not available or logged in')
+                    console.log('metamask not available or logged in')
                 }
                 break
             case 'ZeroWallet':

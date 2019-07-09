@@ -5,7 +5,7 @@
   "dependencies": {
     "@oceanprotocol/art": "^2.2.0",
     "@oceanprotocol/secret-store-client": "0.0.14",
-    "@oceanprotocol/squid": "^0.6.2",
+    "@oceanprotocol/squid": "^0.6.3",
     "@oceanprotocol/typographies": "^0.1.0",
     "bip39": "^3.0.2",
     "classnames": "^2.2.6",

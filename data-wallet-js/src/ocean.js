@@ -47,6 +47,5 @@ export async function requestFromFaucet(account) {
 }
 
 export async function requestOcean(ocean, amount = 1) {
-    console.log(ocean, amount)
     return ocean.tokens.request((await ocean.accounts.list())[0], amount)
 }
