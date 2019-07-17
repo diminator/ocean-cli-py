@@ -8,6 +8,8 @@ export const User = React.createContext({
     account: '',
     web3: {},
     ocean: {},
+    did: null,
+    ddo: {},
     balance: {
         eth: 0,
         ocn: 0

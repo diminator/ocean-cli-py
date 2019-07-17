@@ -14,8 +14,8 @@ export default class Consume extends PureComponent {
     static contextType = User
 
     state = {
-        did: null,
-        ddo: {},
+        didValue: undefined,
+        ddoValue: {},
         message: undefined,
         isLoading: false,
         success: undefined,
@@ -24,7 +24,10 @@ export default class Consume extends PureComponent {
     }
 
     componentDidMount = async () => {
-        const did = queryString.parse(this.props.location.search.replace(/^\?/i, '')).did
+        let did = queryString.parse(this.props.location.search.replace(/^\?/i, '')).did
+        if (!did && this.context.did) {
+            did = this.context.did
+        }
         this.setState({didValue: did})
         await this.setDDO(did)
     }
@@ -53,8 +56,7 @@ export default class Consume extends PureComponent {
 
     consume = async () => {
         this.setState({ isLoading: true })
-        const { ocean, account } = this.context
-        const { did, ddo } = this.state
+        const { ocean, account, did, ddo } = this.context
         const messages = [
             'Creating Agreement',
             'Agreement Created',
@@ -158,7 +160,7 @@ export default class Consume extends PureComponent {
     )
 
     Action = () => {
-        const { ddo } = this.state
+        const { ddo } = this.context
         let price = null
         let validDDO = false
         if (ddo && ddo.service) {
@@ -190,7 +192,9 @@ export default class Consume extends PureComponent {
         try {
             const ddo = await ocean.assets.resolve(did)
             if (ddo) {
-                this.setState({did, ddo})
+                this.context.did = did
+                this.context.ddo = ddo
+                this.setState({ddoValue:ddo})
             }
             return ddo
         } catch (e) {
@@ -206,7 +210,7 @@ export default class Consume extends PureComponent {
     }
 
     render() {
-        const { isWeb3 } = this.context
+        const { isWeb3, ddo } = this.context
         const { isLoading, error, success } = this.state
 
         return (
@@ -235,7 +239,7 @@ export default class Consume extends PureComponent {
                 <Content>
                     <div className={styles.ddoBox}>
                         <pre>
-                            { `${JSON.stringify(this.state.ddo, undefined, 2)}` }
+                            { `${JSON.stringify(ddo, undefined, 2)}` }
                         </pre>
                     </div>
                 </Content>

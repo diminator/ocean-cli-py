@@ -32,6 +32,8 @@ export default class UserProvider extends PureComponent {
         web3: new Web3(new Web3.providers.HttpProvider(nodeUri)),
         account: '',
         ocean: {},
+        did: null,
+        ddo: {},
         requestFromFaucet: () => requestFromFaucet(''),
         requestOcean: () => requestOcean(this.state.ocean),
         unlockAccounts: () => this.unlockAccounts(),
