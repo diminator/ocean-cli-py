@@ -27,7 +27,8 @@ install_requirements = [
     'google-auth-httplib2==0.0.3',
     'google-auth-oauthlib==0.4.0',
     'google-api-python-client==1.7.9',
-    'squid-py==0.6.13',
+    'dropbox==9.4.0',
+    'squid-py==0.6.15',
     # web3 requires eth-abi, requests, and more,
     # so those will be installed too.
     # See https://github.com/ethereum/web3.py/blob/master/setup.py

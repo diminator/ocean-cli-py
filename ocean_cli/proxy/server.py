@@ -5,7 +5,8 @@ from urllib import parse
 from ocean_cli.ocean import get_ocean
 from ocean_cli.proxy.services import (
     location_heatmap,
-    gdrive
+    gdrive,
+    dropbox_share
 )
 
 ocean = get_ocean('config.ini')
@@ -54,6 +55,9 @@ def handle(path, qs):
 
     if path == 'gdrive/auth':
         return jsonify(gdrive.authorize(**qs))
+
+    if path == 'dropbox/auth':
+        return jsonify(dropbox_share.authorize_folder(**qs))
 
     return 'Not found', 404
 
