@@ -40,10 +40,9 @@ export default class Consume extends PureComponent {
 
     prepareUrl = async (did) => {
         const agreementId = 'agreementIdBla'
-        const { ocean, account } = this.context
+        const { ocean, account, ddo } = this.context
 
-        const { serviceEndpoint } = this.state.ddo
-            .findServiceByType("Access")
+        const { serviceEndpoint } = ddo.findServiceByType("Access")
         const agreementIdSignature = await ocean.utils.signature
             .signText(agreementId, account)
         let consumeUrl = serviceEndpoint
