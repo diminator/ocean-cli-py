@@ -6,7 +6,7 @@ import {
     nodeUri,
     secretStoreUri,
     verbose
-} from "./config.nile.js"
+} from "./config.spree.js"
 
 export {
     aquariusUri,
