@@ -6,10 +6,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from squid_py.did import id_to_did
-
-from ocean_cli.api.events import handle_access
-from ocean_cli.ocean import get_ocean
 
 import logging
 
@@ -94,22 +90,3 @@ def authorize(emailAddress=None, fileId=None, *args, **kwargs):
                                         body=user_permission,
                                         fields='id').execute()
 
-
-def handle_agreement_created(event, agreement_id, ocean=None):
-    handle_access(event, agreement_id, ocean=ocean)
-    access_consumer = event['args'].get('_accessConsumer', None)
-    access_provider = event['args'].get('_accessProvider', None)
-    if access_provider == ocean.account.address:
-        did = id_to_did(ocean.agreements.get(agreement_id).did)
-        print(ocean.check_permissions(did, access_consumer))
-        authorize(ocean.decrypt(did)[0]['qs']['emailAddress'][0],
-                  ocean.decrypt(did)[0]['qs']['fileId'][0])
-
-
-def listen_events():
-    from ocean_cli.api.events import listen_lock_reward
-    listen_lock_reward(handle_agreement_created, ocean=get_ocean('config.ini'))
-
-
-if __name__ == '__main__':
-    listen_events()
