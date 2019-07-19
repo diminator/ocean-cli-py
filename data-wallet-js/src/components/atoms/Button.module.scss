@@ -1,7 +1,8 @@
 @import '../../styles/variables';
 
 .button {
-    border: 0;
+    border: 1px solid $brand-purple;
+    border-radius: 20px;
     cursor: pointer;
     outline: 0;
     margin: 0;
@@ -12,10 +13,9 @@
     font-family: $font-family-base;
     font-weight: $font-weight-bold;
     text-transform: uppercase;
-    border-radius: 2px;
     transition: .2s ease-out;
     color: $brand-white;
-    background: $brand-grey-light;
+    background: rgba($brand-purple, 0.5);
     box-shadow: 0 9px 18px 0 rgba(0, 0, 0, .1);
     min-height: 45px;
     user-select: none;
@@ -23,7 +23,7 @@
     &:hover,
     &:focus {
         color: $brand-white;
-        background: $brand-grey-light;
+        background: $brand-purple;
         text-decoration: none;
         transform: translate3d(0, -.05rem, 0);
         box-shadow: 0 12px 30px 0 rgba(0, 0, 0, .1);
@@ -45,7 +45,9 @@
 
 .buttonPrimary {
     composes: button;
-    background: $brand-gradient;
+
+    background: $brand-white;
+    color: $brand-purple;
 
     &:hover,
     &:focus {
