@@ -3,7 +3,7 @@ import { Route, Switch } from 'react-router-dom'
 
 import Consume from './routes/Consume'
 import NotFound from './routes/NotFound'
-import Faucet from "./routes/Faucet";
+import { Faucet } from "./routes/Faucet";
 import About from "./routes/About";
 
 const Routes = () => (

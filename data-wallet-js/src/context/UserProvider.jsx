@@ -35,7 +35,7 @@ export default class UserProvider extends PureComponent {
         did: null,
         ddo: {},
         requestFromFaucet: () => requestFromFaucet(''),
-        requestOcean: () => requestOcean(this.state.ocean),
+        requestOcean: (amount) => requestOcean(this.state.ocean, amount),
         unlockAccounts: () => this.unlockAccounts(),
         loginMetamask: () => this.loginMetamask(),
         loginZeroWallet: () => this.loginZeroWallet(),

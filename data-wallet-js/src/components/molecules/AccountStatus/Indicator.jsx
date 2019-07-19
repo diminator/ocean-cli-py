@@ -10,6 +10,7 @@ const Indicator = ({
 }) => (
     <div
         className={cx(styles.status, className)}
+        onClick={togglePopover}
         onMouseOver={togglePopover}
         onMouseOut={togglePopover}
         ref={forwardedRef}

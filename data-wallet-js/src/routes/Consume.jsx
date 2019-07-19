@@ -8,6 +8,7 @@ import { User } from '../context'
 import styles from './Consume.module.scss'
 import Route from "../components/templates/Route";
 import Content from "../components/atoms/Content";
+import { OceanFaucet } from "./Faucet";
 
 
 export default class Consume extends PureComponent {
@@ -158,16 +159,23 @@ export default class Consume extends PureComponent {
         </div>
     )
 
-    Action = () => {
-        const { ddo } = this.context
-        let price = null
-        let validDDO = false
-        if (ddo && ddo.service) {
-            validDDO = true
-            price = (parseInt(ddo.service[0].metadata.base.price)/1e18)
+    getPriceFromDDO = (ddo) => {
+        if (ddo.service && ddo.service[0].metadata.base.price) {
+            return (parseInt(ddo.service[0].metadata.base.price) / 1e18)
                 .toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                 })
+        }
+        return null
+    }
+
+    Action = () => {
+        const { ddo, balance } = this.context
+        let price = null
+        let hasBalance = false
+        if (ddo && ddo.service) {
+            price = this.getPriceFromDDO(ddo)
+            hasBalance = price <= balance.ocn
         }
         return (
             <>
@@ -177,7 +185,7 @@ export default class Consume extends PureComponent {
                     disabled={
                         !this.context.isLogged
                         || !this.context.isOceanNetwork
-                        || !validDDO
+                        || !hasBalance
                     }
                 >
                     Consume DID {price && `(${price} OCEAN)`}
@@ -188,17 +196,15 @@ export default class Consume extends PureComponent {
 
     setDDO = async (did) => {
         const { ocean } = this.context
+        this.context.did = did
+
+        let ddo = {}
         try {
-            const ddo = await ocean.assets.resolve(did)
-            if (ddo) {
-                this.context.did = did
-                this.context.ddo = ddo
-                this.setState({ddoValue:ddo})
-            }
-            return ddo
-        } catch (e) {
-            return null
-        }
+            ddo = await ocean.assets.resolve(did)
+        } catch (e) {}
+        this.context.ddo = ddo
+        this.setState({ddoValue:ddo})
+        return ddo
     }
 
     handleChange = async (event) => {
@@ -209,8 +215,9 @@ export default class Consume extends PureComponent {
     }
 
     render() {
-        const { isWeb3, ddo } = this.context
+        const { isWeb3, ddo, balance } = this.context
         const { isLoading, error, success } = this.state
+        const price = this.getPriceFromDDO(ddo)
 
         return (
             <Route
@@ -235,6 +242,7 @@ export default class Consume extends PureComponent {
                         )}
                     </div>
                 </Content>
+                { (balance.ocn < price) && !isLoading && <OceanFaucet amount={price}/> }
                 <Content>
                     <div className={styles.ddoBox}>
                         <pre>

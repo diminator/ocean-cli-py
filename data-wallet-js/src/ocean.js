@@ -26,7 +26,7 @@ export async function provideOcean(web3Provider) {
 }
 
 
-export async function requestFromFaucet(account) {
+export async function requestFromFaucet(account, amount = 0.05) {
     try {
         const url = `${faucetUri}/faucet`
         const response = await fetch(url, {
@@ -47,5 +47,5 @@ export async function requestFromFaucet(account) {
 }
 
 export async function requestOcean(ocean, amount = 1) {
-    return ocean.tokens.request((await ocean.accounts.list())[0], amount)
+    return ocean.tokens.request((await ocean.accounts.list())[0], parseInt(amount))
 }

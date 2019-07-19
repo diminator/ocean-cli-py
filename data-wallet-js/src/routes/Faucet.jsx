@@ -19,12 +19,13 @@ class Web3Action extends PureComponent {
     }
 
     getTokens = async (
-        requestFromFaucet
+        requestFromFaucet,
+        amount
     ) => {
         this.setState({ isLoading: true })
 
         try {
-            const response = await requestFromFaucet()
+            const response = await requestFromFaucet(amount)
 
             if (!response.success) {
                 this.setState({
@@ -129,20 +130,20 @@ class EtherFaucet extends Web3Action {
 }
 
 
-class OceanFaucet extends Web3Action {
+export class OceanFaucet extends Web3Action {
     Action = () => (
         <>
             <Button
                 primary
-                onClick={() => this.getTokens(this.context.requestOcean)}
+                onClick={() => this.getTokens(this.context.requestOcean, this.props.amount)}
                 disabled={
                     !this.context.isLogged || !this.context.isOceanNetwork
                 }
             >
-                Request OCEAN
+                Request { this.props.amount } OCEAN
             </Button>
             <p>
-                You can request as many OCEAN as you want.
+                You can request as many fake OCEAN as you want.
             </p>
         </>
     )
@@ -167,7 +168,7 @@ class OceanFaucet extends Web3Action {
     }
 }
 
-export default class Faucet extends PureComponent{
+export class Faucet extends PureComponent{
     render() {
         return (
             <Route
