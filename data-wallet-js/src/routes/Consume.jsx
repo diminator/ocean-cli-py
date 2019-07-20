@@ -10,6 +10,9 @@ import Route from "../components/templates/Route";
 import Content from "../components/atoms/Content";
 import { OceanFaucet } from "./Faucet";
 
+const MANTARAY_FULL =
+    "https://oceanprotocol.com/static/media/mantaray-full@2x.7b3f207b.png"
+
 
 export default class Consume extends PureComponent {
     static contextType = User
@@ -160,10 +163,14 @@ export default class Consume extends PureComponent {
     )
 
     getPriceFromDDO = (ddo) => {
-        if (ddo.service && ddo.service[0].metadata.base.price) {
-            return (parseInt(ddo.service[0].metadata.base.price) / 1e18)
+        if (!ddo.service) {
+            return null
+        }
+        const { metadata } = ddo.findServiceByType("Metadata")
+        if (metadata && metadata.base.price) {
+            return (parseInt(metadata.base.price) / 1e18)
                 .toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
+                      minimumFractionDigits: 2,
                 })
         }
         return null
@@ -171,26 +178,39 @@ export default class Consume extends PureComponent {
 
     Action = () => {
         const { ddo, balance } = this.context
+        const { isLoading } = this.state
+
         let price = null
         let hasBalance = false
+
         if (ddo && ddo.service) {
             price = this.getPriceFromDDO(ddo)
             hasBalance = price <= balance.ocn
         }
+
         return (
-            <>
-                <Button
-                    primary
-                    onClick={this.consume}
-                    disabled={
-                        !this.context.isLogged
-                        || !this.context.isOceanNetwork
-                        || !hasBalance
-                    }
-                >
-                    Consume DID {price && `(${price} OCEAN)`}
-                </Button>
-            </>
+            <div className={styles.actionContent}>
+                {isLoading ? (
+                    <Spinner message={this.state.message}/>
+                ) : (
+                    <>
+                        <Button
+                            primary
+                            onClick={this.consume}
+                            disabled={
+                                !this.context.isLogged
+                                || !this.context.isOceanNetwork
+                                || !hasBalance
+                            }
+                        >
+                            Consume DID {price && `(${price} OCEAN)`}
+                        </Button>
+                        <p>
+                            Click to consume the service. Tokens might transfer.
+                        </p>
+                    </>
+                )}
+            </div>
         )
     }
 
@@ -215,9 +235,13 @@ export default class Consume extends PureComponent {
     }
 
     render() {
-        const { isWeb3, ddo, balance } = this.context
+        const { isWeb3, did, ddo, balance } = this.context
         const { isLoading, error, success } = this.state
         const price = this.getPriceFromDDO(ddo)
+        let metadata
+        if (ddo.service) {
+            metadata = ddo.findServiceByType("Metadata").metadata
+        }
 
         return (
             <Route
@@ -225,31 +249,41 @@ export default class Consume extends PureComponent {
                 description="Get loaded with services on Ocean's Pacific network."
             >
                 <Content>
-                    <div className={styles.action}>
-                        <input type="text"
-                               className={styles.input}
-                               value={this.state.didValue}
-                               onChange={e => this.handleChange(e)} />
-
-                        {isLoading ? (
-                            <Spinner message={this.state.message} />
-                        ) : error ? (
-                            <this.Error />
-                        ) : success ? (
-                            <this.Success />
-                        ) : (
-                            isWeb3 && <this.Action />
-                        )}
-                    </div>
+                    <input type="text"
+                       className={styles.input}
+                       value={this.state.didValue}
+                       onChange={e => this.handleChange(e)} />
                 </Content>
-                { (balance.ocn < price) && !isLoading && <OceanFaucet amount={price}/> }
-                <Content>
-                    <div className={styles.ddoBox}>
-                        <pre>
-                            { `${JSON.stringify(ddo, undefined, 2)}` }
-                        </pre>
-                    </div>
-                </Content>
+                { metadata && (
+                    <Content>
+                        <div className={styles.ddoCard}>
+                            <h1>{ metadata.base.name }</h1>
+                            <h3>{ metadata.base.author }</h3>
+                            <div className={styles.thumbnail}
+                                 style={{ backgroundImage:
+                                         `url(${metadata.thumbnail 
+                                         || MANTARAY_FULL})` }} />
+                            { (balance.ocn < price) && !isLoading ? (
+                                <div className={styles.faucetContainer}>
+                                    <OceanFaucet amount={price}/>
+                                </div>
+                                ) : (
+                                    <div className={styles.actionContainer}>
+                                        <div className={styles.action}>
+                                            {error ? (
+                                                <this.Error />
+                                            ) : success ? (
+                                                <this.Success />
+                                            ) : (
+                                                isWeb3 && <this.Action />
+                                            )}
+                                        </div>
+                                    </div>
+                            )}
+                            <div className={styles.ddoCardFooter}>{ did }</div>
+                        </div>
+                    </Content>
+                )}
             </Route>
         )
     }

@@ -2,7 +2,7 @@
 
 .button {
     border: 1px solid $brand-purple;
-    border-radius: 20px;
+    border-radius: $border-radius--button;
     cursor: pointer;
     outline: 0;
     margin: 0;

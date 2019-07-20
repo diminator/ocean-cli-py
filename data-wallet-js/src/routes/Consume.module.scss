@@ -7,14 +7,27 @@
 }
 
 .action {
-    text-align: center;
     margin-top: $spacer * 2;
+    text-align: center;
 
     p {
         margin-top: $spacer;
         color: $brand-grey-light;
     }
 }
+
+.actionContainer,
+.faucetContainer {
+    background: white;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+}
+
+.actionContainer {
+
+}
+.actionContent {}
 
 .success {
     color: $green;
@@ -47,6 +60,51 @@
     }
 }
 
-.ddoBox {
+.thumbnail {
+    opacity: 0.7    ;
+    height: 100%;
+    background-size: 90%;
+    background-position: 50%;
+    background-color: #fcfcfc;
+    background-repeat: no-repeat;
+}
 
+.actionContainer,
+.faucetContainer {
+    border: 1px solid $brand-grey-lighter;
+    padding: 0 1em;
+}
+
+.ddoCardFooter {
+    font-size: 0.7rem;
+    font-family: 'Consolas', 'Deja Vu Sans Mono', 'Bitstream Vera Sans Mono', monospace;
+    color: $brand-grey-light;
+    position: absolute;
+    top: 100%; left: 0;
+    transform: translate(1rem, -100%);
+}
+
+.ddoCard {
+    height: 30rem;
+    position: relative;
+    margin-bottom: 1.25rem;
+    border-radius: .2rem;
+    overflow: hidden;
+    -webkit-transition: .2s ease-out;
+    transition: .2s ease-out;
+    border: 1px solid #e2e2e2;
+
+    h1, h3 {
+        margin-left: 1rem;
+        margin-top: 0.5rem;
+        margin-bottom: 0;
+    }
+
+    h3 {
+        color: $brand-pink
+    }
+}
+
+.input {
+    margin-bottom: 3rem;
 }
