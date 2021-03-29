@@ -76,7 +76,7 @@ pycodestyle==2.5.0
 pycparser==2.19
 pycryptodome==3.8.2
 pycryptodomex==3.8.2
-Pygments==2.4.2
+Pygments==2.7.4
 PyJWT==1.7.1
 pyOpenSSL==19.0.0
 pyrsistent==0.15.2
