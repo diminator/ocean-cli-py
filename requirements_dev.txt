@@ -52,7 +52,7 @@ jupytext==1.1.6
 keeper-contracts==0.10.3
 lru-dict==1.1.6
 MarkupSafe==1.1.1
-mistune==0.8.4
+mistune==2.0.3
 mock==3.0.5
 nbconvert==5.5.0
 nbformat==4.4.0
